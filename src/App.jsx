@@ -1,5 +1,32 @@
 import { useState } from "react";
 
+// ─── SUPABASE CONFIG ──────────────────────────────────────────────────────────
+const SUPABASE_URL = "https://syaljsuvapykwjjgvxlh.supabase.co";
+const SUPABASE_KEY = "sb_publishable_qwi8xbDKJBz9xyMUjVZxIA_bW3s8rJC";
+
+async function saveCommande(order) {
+  const articles = order.cart.map(i => `${i.name} x${i.qty}`).join(", ");
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/commandes`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": SUPABASE_KEY,
+      "Authorization": `Bearer ${SUPABASE_KEY}`,
+      "Prefer": "return=minimal"
+    },
+    body: JSON.stringify({
+      nom: order.nom,
+      telephone: order.telephone,
+      quartier: order.quartier,
+      adresse: order.adresse,
+      articles: articles,
+      total: order.total,
+      statut: "nouvelle"
+    })
+  });
+  return response.ok;
+}
+
 // ─── DATA ─────────────────────────────────────────────────────────────────────
 
 const livraisonPrix = {
@@ -1118,10 +1145,16 @@ export default function App() {
     setPage("commande");
   }
 
-  function handleConfirm(order) {
+  async function handleConfirm(order) {
     setLastOrder(order);
     setCart([]);
     setPage("confirmation");
+    // Enregistrer dans Supabase
+    try {
+      await saveCommande(order);
+    } catch(e) {
+      console.error("Erreur Supabase:", e);
+    }
   }
 
   if (page === "accueil") return (
