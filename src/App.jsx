@@ -30,7 +30,9 @@ const livraisonPrix = {
   "Sicap Fann": 2000,
   "Sicap Dieuppeul": 2000,
   "Biscuiterie": 2000,
-  "Guédiawaye": 2000,
+  "Grand Dakar": 2000,
+  "Hann": 2000,
+  "Mariste": 2000,
   "Autre (préciser dans les notes)": 0,
 };
 
@@ -43,6 +45,7 @@ const categories = [
   { id: "animaux",   label: "Animaux",             emoji: "🐾", desc: "Accessoires, jouets, bien-être" },
   { id: "lifestyle", label: "Lifestyle & Outdoor",  emoji: "🌿", desc: "Hamacs, gourdes, sacs" },
   { id: "sport",     label: "Sport",               emoji: "🏋️", desc: "Yoga, fitness, performance" },
+  { id: "tous",      label: "Tous nos produits",   emoji: "🛍️", desc: "Tout le catalogue MoodShop" },
 ];
 
 const products = [
@@ -182,8 +185,21 @@ function PageAccueil({ cart, setCart, onSelectCategory, onGoToCart, onBuyNow }) 
       if (ex) return prev.map(i => i.id === p.id ? { ...i, qty: i.qty + 1 } : i);
       return [...prev, { ...p, qty: 1 }];
     });
-    setAdded(prev => ({ ...prev, [p.id]: true }));
-    setTimeout(() => setAdded(prev => ({ ...prev, [p.id]: false })), 1200);
+    setAdded(prev => ({ ...prev, [p.id]: (prev[p.id] || 0) + 1 }));
+  }
+
+  function removeFromCart(p) {
+    setCart(prev => {
+      const ex = prev.find(i => i.id === p.id);
+      if (!ex) return prev;
+      if (ex.qty <= 1) return prev.filter(i => i.id !== p.id);
+      return prev.map(i => i.id === p.id ? { ...i, qty: i.qty - 1 } : i);
+    });
+    setAdded(prev => {
+      const newQty = (prev[p.id] || 1) - 1;
+      if (newQty <= 0) { const n = {...prev}; delete n[p.id]; return n; }
+      return { ...prev, [p.id]: newQty };
+    });
   }
 
   return (
@@ -210,7 +226,7 @@ function PageAccueil({ cart, setCart, onSelectCategory, onGoToCart, onBuyNow }) 
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(155px, 1fr))", gap: 10 }}>
               {searchResults.map(p => (
-                <ProductCard key={p.id} p={p} onAdd={addToCart} added={added[p.id]} onView={setSelectedProduct} />
+                <ProductCard key={p.id} p={p} onAdd={addToCart} added={added[p.id]} onView={(p) => { window.scrollTo(0, 0); setSelectedProduct(p); }} />
               ))}
             </div>
           )}
@@ -367,10 +383,12 @@ function PageProduits({ activeCat, setActiveCat, cart, setCart, onHome, onGoToCa
     />
   );
 
-  const filtered = products.filter(p =>
-    p.cat === activeCat &&
-    p.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = activeCat === "tous"
+    ? products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
+    : products.filter(p =>
+        p.cat === activeCat &&
+        p.name.toLowerCase().includes(search.toLowerCase())
+      );
 
   const searchFiltered = search.trim()
     ? products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
@@ -382,8 +400,21 @@ function PageProduits({ activeCat, setActiveCat, cart, setCart, onHome, onGoToCa
       if (ex) return prev.map(i => i.id === p.id ? { ...i, qty: i.qty + 1 } : i);
       return [...prev, { ...p, qty: 1 }];
     });
-    setAdded(prev => ({ ...prev, [p.id]: true }));
-    setTimeout(() => setAdded(prev => ({ ...prev, [p.id]: false })), 1200);
+    setAdded(prev => ({ ...prev, [p.id]: (prev[p.id] || 0) + 1 }));
+  }
+
+  function removeFromCart(p) {
+    setCart(prev => {
+      const ex = prev.find(i => i.id === p.id);
+      if (!ex) return prev;
+      if (ex.qty <= 1) return prev.filter(i => i.id !== p.id);
+      return prev.map(i => i.id === p.id ? { ...i, qty: i.qty - 1 } : i);
+    });
+    setAdded(prev => {
+      const newQty = (prev[p.id] || 1) - 1;
+      if (newQty <= 0) { const n = {...prev}; delete n[p.id]; return n; }
+      return { ...prev, [p.id]: newQty };
+    });
   }
 
   const currentCat = categories.find(c => c.id === activeCat);
@@ -469,7 +500,7 @@ function PageProduits({ activeCat, setActiveCat, cart, setCart, onHome, onGoToCa
             gap: 10,
           }}>
             {displayProducts.map(p => (
-              <ProductCard key={p.id} p={p} onAdd={addToCart} added={added[p.id]} onView={setSelectedProduct} />
+              <ProductCard key={p.id} p={p} onAdd={addToCart} added={added[p.id]} onView={(p) => { window.scrollTo(0, 0); setSelectedProduct(p); }} />
             ))}
           </div>
         ) : (
@@ -490,13 +521,14 @@ function PageProduits({ activeCat, setActiveCat, cart, setCart, onHome, onGoToCa
 function PageFicheProduit({ produit, cart, setCart, onBack, onGoToCart, onBuyNow, onViewSimilar }) {
   const [added, setAdded] = useState(false);
   const [addedSimilar, setAddedSimilar] = useState({});
+  const [qty, setQty] = useState(1);
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
 
   function buyNow() {
     setCart(prev => {
       const ex = prev.find(i => i.id === produit.id);
-      if (ex) return prev.map(i => i.id === produit.id ? { ...i, qty: i.qty + 1 } : i);
-      return [...prev, { ...produit, qty: 1 }];
+      if (ex) return prev.map(i => i.id === produit.id ? { ...i, qty: i.qty + qty } : i);
+      return [...prev, { ...produit, qty }];
     });
     onBuyNow();
   }
@@ -504,15 +536,22 @@ function PageFicheProduit({ produit, cart, setCart, onBack, onGoToCart, onBuyNow
   function addToCart() {
     setCart(prev => {
       const ex = prev.find(i => i.id === produit.id);
-      if (ex) return prev.map(i => i.id === produit.id ? { ...i, qty: i.qty + 1 } : i);
-      return [...prev, { ...produit, qty: 1 }];
+      if (ex) return prev.map(i => i.id === produit.id ? { ...i, qty: i.qty + qty } : i);
+      return [...prev, { ...produit, qty }];
     });
     setAdded(true);
     setTimeout(() => setAdded(false), 1500);
   }
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif", minHeight: "100vh", background: "#FCF6F0" }}>
+    <div
+      style={{ fontFamily: "'DM Sans', sans-serif", minHeight: "100vh", background: "#FCF6F0" }}
+      onTouchStart={e => { window._touchStartX = e.touches[0].clientX; }}
+      onTouchEnd={e => {
+        const diff = e.changedTouches[0].clientX - (window._touchStartX || 0);
+        if (diff > 80) { onBack(); }
+      }}
+    >
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700;800&display=swap" rel="stylesheet" />
 
       {/* Header simplifié */}
@@ -589,6 +628,25 @@ function PageFicheProduit({ produit, cart, setCart, onBack, onGoToCart, onBuyNow
           position: "sticky", bottom: 16,
           padding: "0 20px", marginTop: 24,
         }}>
+          {/* Sélecteur quantité */}
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "center",
+            gap: 16, marginBottom: 12,
+          }}>
+            <button onClick={() => setQty(q => Math.max(1, q - 1))} style={{
+              width: 36, height: 36, border: "1.5px solid #474819",
+              background: "#fff", borderRadius: "50%", cursor: "pointer",
+              fontWeight: 800, fontSize: 18, color: "#474819",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>−</button>
+            <span style={{ fontWeight: 800, fontSize: 18, color: "#111", minWidth: 24, textAlign: "center" }}>{qty}</span>
+            <button onClick={() => setQty(q => q + 1)} style={{
+              width: 36, height: 36, border: "none",
+              background: "#474819", borderRadius: "50%", cursor: "pointer",
+              fontWeight: 800, fontSize: 18, color: "#fff",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>+</button>
+          </div>
           <button onClick={addToCart} style={{
             width: "100%", padding: "15px",
             background: added ? "#c9c83a" : "#E4E35D",
@@ -629,7 +687,7 @@ function PageFicheProduit({ produit, cart, setCart, onBack, onGoToCart, onBuyNow
                     }}
                   >
                     <div
-                      onClick={() => { setAdded(false); onViewSimilar && onViewSimilar(p); }}
+                      onClick={() => { setAdded(false); window.scrollTo(0, 0); onViewSimilar && onViewSimilar(p); }}
                       style={{
                         background: "#EDE5D8", height: 90,
                         display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40,
@@ -638,7 +696,7 @@ function PageFicheProduit({ produit, cart, setCart, onBack, onGoToCart, onBuyNow
                     >{p.emoji}</div>
                     <div style={{ padding: "8px 10px" }}>
                       <p
-                        onClick={() => { setAdded(false); onViewSimilar && onViewSimilar(p); }}
+                        onClick={() => { setAdded(false); window.scrollTo(0, 0); onViewSimilar && onViewSimilar(p); }}
                         style={{ fontSize: 11, fontWeight: 700, color: "#111", margin: "0 0 4px", lineHeight: 1.3, cursor: "pointer" }}
                       >{p.name}</p>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
@@ -676,7 +734,7 @@ function PageFicheProduit({ produit, cart, setCart, onBack, onGoToCart, onBuyNow
 }
 
 // ─── PRODUCT CARD ─────────────────────────────────────────────────────────────
-function ProductCard({ p, onAdd, added, onView }) {
+function ProductCard({ p, onAdd, onRemove, added, onView }) {
   const [hov, setHov] = useState(false);
   return (
     <div
@@ -716,15 +774,15 @@ function ProductCard({ p, onAdd, added, onView }) {
           <span style={{ fontSize: 15, fontWeight: 800, color: "#111" }}>
             {p.price.toLocaleString("fr-FR")} F
           </span>
-          <button onClick={() => onAdd(p)} style={{
-            background: added ? "#E4E35D" : "transparent",
-            color: added ? "#333" : "#333",
-            border: "1.5px solid #E4E35D", borderRadius: 3,
-            padding: "5px 10px", fontSize: 11, fontWeight: 700,
-            cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
-          }}>
-            {added ? "✓" : "+ Panier"}
-          </button>
+          {added ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <button onClick={() => onRemove && onRemove(p)} style={{ width: 24, height: 24, border: "1.5px solid #e0e0e0", background: "#fff", borderRadius: 3, cursor: "pointer", fontWeight: 800, fontSize: 14, color: "#111" }}>−</button>
+              <span style={{ fontWeight: 800, fontSize: 13, minWidth: 16, textAlign: "center", color: "#111" }}>{added}</span>
+              <button onClick={() => onAdd(p)} style={{ width: 24, height: 24, border: "none", background: "#474819", borderRadius: 3, cursor: "pointer", fontWeight: 800, fontSize: 14, color: "#fff" }}>+</button>
+            </div>
+          ) : (
+            <button onClick={() => onAdd(p)} style={{ background: "transparent", color: "#474819", border: "1.5px solid #E4E35D", borderRadius: 3, padding: "5px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+ Panier</button>
+          )}
         </div>
       </div>
     </div>
@@ -770,7 +828,7 @@ function PagePanier({ cart, setCart, onBack, onOrder }) {
               background: "#E4E35D", border: "none", borderRadius: 4,
               padding: "11px 26px", color: "#474819",
               fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit",
-            }}>Retour à l'accueil →</button>
+            }}>← Retour à l'accueil</button>
           </div>
         ) : (
           <div>
@@ -830,6 +888,26 @@ function PagePanier({ cart, setCart, onBack, onOrder }) {
 // ══════════════════════════════════════════════════════════════════════════════
 // PAGE COMMANDE
 // ══════════════════════════════════════════════════════════════════════════════
+function Field({ label, fkey, type = "text", placeholder = "", form, setForm, errors }) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: "#555", display: "block", marginBottom: 5 }}>{label}</label>
+      <input
+        type={type} value={form[fkey]} placeholder={placeholder}
+        onChange={e => setForm(f => ({ ...f, [fkey]: e.target.value }))}
+        style={{
+          width: "100%", boxSizing: "border-box", padding: "10px 13px", borderRadius: 4,
+          border: `1.5px solid ${errors[fkey] ? "#e0001a" : "#e0e0e0"}`,
+          fontSize: 13, fontFamily: "inherit", outline: "none", color: "#111",
+        }}
+        onFocus={e => { if (!errors[fkey]) e.target.style.borderColor = "#111"; }}
+        onBlur={e => { if (!errors[fkey]) e.target.style.borderColor = "#e0e0e0"; }}
+      />
+      {errors[fkey] && <p style={{ color: "#e0001a", fontSize: 11, margin: "4px 0 0" }}>{errors[fkey]}</p>}
+    </div>
+  );
+}
+
 function PageCommande({ cart, onBack, onConfirm }) {
   const [form, setForm] = useState({ nom: "", telephone: "", quartier: "", adresse: "", paiement: "livraison", mobile: "" });
   const [errors, setErrors] = useState({});
@@ -843,7 +921,6 @@ function PageCommande({ cart, onBack, onConfirm }) {
     if (!form.telephone.trim()) e.telephone = "Requis";
     if (!form.quartier) e.quartier = "Requis";
     if (!form.adresse.trim()) e.adresse = "Requis";
-    if (form.paiement === "mobile" && !form.mobile.trim()) e.mobile = "Requis";
     return e;
   }
   function submit() {
@@ -852,25 +929,7 @@ function PageCommande({ cart, onBack, onConfirm }) {
     onConfirm({ ...form, cart, total });
   }
 
-  function Field({ label, fkey, type = "text", placeholder = "" }) {
-    return (
-      <div style={{ marginBottom: 14 }}>
-        <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: "#555", display: "block", marginBottom: 5 }}>{label}</label>
-        <input
-          type={type} value={form[fkey]} placeholder={placeholder}
-          onChange={e => setForm(f => ({ ...f, [fkey]: e.target.value }))}
-          style={{
-            width: "100%", boxSizing: "border-box", padding: "10px 13px", borderRadius: 4,
-            border: `1.5px solid ${errors[fkey] ? "#e0001a" : "#e0e0e0"}`,
-            fontSize: 13, fontFamily: "inherit", outline: "none", color: "#111",
-          }}
-          onFocus={e => { if (!errors[fkey]) e.target.style.borderColor = "#111"; }}
-          onBlur={e => { if (!errors[fkey]) e.target.style.borderColor = "#e0e0e0"; }}
-        />
-        {errors[fkey] && <p style={{ color: "#e0001a", fontSize: 11, margin: "4px 0 0" }}>{errors[fkey]}</p>}
-      </div>
-    );
-  }
+
 
   return (
     <div style={{ fontFamily: "'DM Sans', sans-serif", minHeight: "100vh", background: "#FCF6F0" }}>
@@ -885,8 +944,8 @@ function PageCommande({ cart, onBack, onConfirm }) {
         <div style={{ flex: 1, minWidth: 280 }}>
           <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: "#999", margin: "0 0 12px" }}>Vos informations</p>
           <div style={{ background: "#fff", border: "1px solid #ebebeb", borderRadius: 6, padding: "18px" }}>
-            <Field label="Nom complet" fkey="nom" placeholder="Moussa Diallo" />
-            <Field label="Téléphone" fkey="telephone" type="tel" placeholder="+221 77 000 00 00" />
+            <Field label="Nom complet" fkey="nom" placeholder="Moussa Diallo" form={form} setForm={setForm} errors={errors} />
+            <Field label="Téléphone" fkey="telephone" type="tel" placeholder="+221 77 000 00 00" form={form} setForm={setForm} errors={errors} />
             {/* Quartier */}
             <div style={{ marginBottom: 14 }}>
               <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: "#555", display: "block", marginBottom: 5 }}>
@@ -930,29 +989,24 @@ function PageCommande({ cart, onBack, onConfirm }) {
                 <option>Sicap Fann</option>
                 <option>Sicap Dieuppeul</option>
                 <option>Biscuiterie</option>
-                <option>Guédiawaye</option>
+                <option>Grand Dakar</option>
+                <option>Hann</option>
+                <option>Mariste</option>
                 <option>Autre (préciser dans les notes)</option>
               </select>
               {errors.quartier && <p style={{ color: "#e0001a", fontSize: 11, margin: "4px 0 0" }}>Requis</p>}
             </div>
 
             {/* Rue / Point de repère */}
-            <Field label="Rue / Point de repère" fkey="adresse" placeholder="Ex: Rue 10, près de la mosquée..." />
-            <div style={{ marginBottom: 14 }}>
+            <Field label="Rue / Point de repère" fkey="adresse" placeholder="Ex: Rue 10, près de la mosquée..." form={form} setForm={setForm} errors={errors} />
               <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: "#555", display: "block", marginBottom: 8 }}>Mode de paiement</label>
-              <div style={{ display: "flex", gap: 8 }}>
-                {[["livraison", "💵 À la livraison"], ["mobile", "📱 Mobile Money"]].map(([val, lbl]) => (
-                  <button key={val} onClick={() => setForm(f => ({ ...f, paiement: val }))} style={{
-                    flex: 1, padding: "10px 6px", borderRadius: 4, cursor: "pointer",
-                    border: `1.5px solid ${form.paiement === val ? "#E4E35D" : "#e0e0e0"}`,
-                    background: form.paiement === val ? "#E4E35D" : "#fff",
-                    color: form.paiement === val ? "#333" : "#555",
-                    fontWeight: 700, fontSize: 12, fontFamily: "inherit", transition: "all 0.15s",
-                  }}>{lbl}</button>
-                ))}
+              <div style={{ background: "#E4E35D", borderRadius: 6, padding: "12px 14px", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                <span style={{ fontSize: 16 }}>💵</span>
+                <span style={{ fontWeight: 700, fontSize: 13, color: "#474819" }}>À la livraison</span>
               </div>
-            </div>
-            {form.paiement === "mobile" && <Field label="Numéro Mobile Money" fkey="mobile" type="tel" placeholder="Wave, Orange Money..." />}
+              <p style={{ fontSize: 11, color: "#888", margin: "8px 0 0", lineHeight: 1.5 }}>
+                💡 Paiement possible par <strong>Orange Money</strong> ou <strong>Wave</strong>.
+              </p>
           </div>
         </div>
 
@@ -1017,7 +1071,7 @@ function PageConfirmation({ order, onHome }) {
         </p>
 
         <div style={{ background: "#fff", border: "1px solid #ebebeb", borderRadius: 6, padding: "16px 18px", textAlign: "left", marginBottom: 18 }}>
-          {[["N° commande", orderId], ["Paiement", order.paiement === "livraison" ? "À la livraison" : "Mobile Money"], ["Total", order.total.toLocaleString("fr-FR") + " F"]].map(([k, v]) => (
+          {[["N° commande", orderId], ["Paiement", "À la livraison"], ["Total", order.total.toLocaleString("fr-FR") + " F"]].map(([k, v]) => (
             <div key={k} style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 13 }}>
               <span style={{ color: "#999" }}>{k}</span>
               <span style={{ fontWeight: 700, color: "#111" }}>{v}</span>
@@ -1026,7 +1080,7 @@ function PageConfirmation({ order, onHome }) {
         </div>
 
         <button onClick={onHome} style={{ background: "#E4E35D", border: "none", borderRadius: 6, padding: "13px 28px", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit", width: "100%", marginBottom: 32 }}>
-          Retour à l'accueil →
+          ← Retour à l'accueil
         </button>
 
         {/* Logo + tagline en bas */}
