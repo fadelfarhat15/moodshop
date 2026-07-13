@@ -156,15 +156,17 @@ function partagentCategorie(a, b) {
 // Affiche l'image si elle existe. Sinon, un fond neutre discret.
 function Visuel({ src, alt, style, imgStyle }) {
   const [erreur, setErreur] = useState(false);
+  // Si src contient plusieurs URLs séparées par virgule, on ne prend que la première
+  const premiere = src ? String(src).split(",")[0].trim() : null;
   const base = {
     display: "flex", alignItems: "center", justifyContent: "center",
     overflow: "hidden", background: "#EDE5D8", ...style,
   };
-  if (src && !erreur) {
+  if (premiere && !erreur) {
     return (
       <div style={base}>
         <img
-          src={src}
+          src={premiere}
           alt={alt || ""}
           onError={() => setErreur(true)}
           style={{ width: "100%", height: "100%", objectFit: "cover", ...imgStyle }}
@@ -178,6 +180,107 @@ function Visuel({ src, alt, style, imgStyle }) {
       <span style={{ fontSize: 12, color: "#b8a98f", fontWeight: 600 }}>{alt || "Image"}</span>
     </div>
   );
+}
+
+// ─── CARROUSEL (galerie photos + vidéo, glissement type Instagram) ────────────
+// Reçoit une liste de médias (images et éventuellement une vidéo).
+// On peut faire glisser au doigt, et des petits points indiquent la position.
+function Carrousel({ medias, alt, badge }) {
+  const [index, setIndex] = useState(0);
+  const [startX, setStartX] = useState(null);
+
+  if (!medias || medias.length === 0) {
+    return (
+      <div style={{ height: 300, borderBottom: "1px solid #ebebeb" }}>
+        <Visuel src={null} alt={alt} style={{ width: "100%", height: "100%", background: "#fff" }} />
+      </div>
+    );
+  }
+
+  const total = medias.length;
+  const aller = (i) => setIndex(Math.max(0, Math.min(total - 1, i)));
+
+  // Gestion du glissement tactile
+  function onTouchStart(e) { setStartX(e.touches[0].clientX); }
+  function onTouchEnd(e) {
+    if (startX === null) return;
+    const delta = e.changedTouches[0].clientX - startX;
+    if (delta > 40) aller(index - 1);      // glisse vers la droite -> précédent
+    else if (delta < -40) aller(index + 1); // glisse vers la gauche -> suivant
+    setStartX(null);
+  }
+
+  const media = medias[index];
+
+  return (
+    <div style={{ position: "relative", background: "#fff", borderBottom: "1px solid #ebebeb" }}>
+      {badge && (
+        <div style={{
+          position: "absolute", top: 16, left: 16, zIndex: 3,
+          background: "#111", color: "#fff",
+          fontSize: 10, fontWeight: 700, padding: "4px 10px", borderRadius: 3,
+        }}>{badge}</div>
+      )}
+
+      {/* Zone média */}
+      <div
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        style={{ height: 300, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", background: media.type === "video" ? "#000" : "#fff" }}
+      >
+        {media.type === "video" ? (
+          <video src={media.src} controls playsInline style={{ width: "100%", maxHeight: 300, display: "block" }} />
+        ) : (
+          <img src={media.src} alt={alt || ""} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+        )}
+      </div>
+
+      {/* Flèches (visibles s'il y a plusieurs médias) */}
+      {total > 1 && (
+        <>
+          {index > 0 && (
+            <button onClick={() => aller(index - 1)} aria-label="Précédent" style={arrowStyle("left")}>‹</button>
+          )}
+          {index < total - 1 && (
+            <button onClick={() => aller(index + 1)} aria-label="Suivant" style={arrowStyle("right")}>›</button>
+          )}
+        </>
+      )}
+
+      {/* Petits points indicateurs */}
+      {total > 1 && (
+        <div style={{
+          position: "absolute", bottom: 12, left: 0, right: 0,
+          display: "flex", justifyContent: "center", gap: 6, zIndex: 3,
+        }}>
+          {medias.map((_, i) => (
+            <span
+              key={i}
+              onClick={() => aller(i)}
+              style={{
+                width: i === index ? 18 : 7, height: 7, borderRadius: 4,
+                background: i === index ? "#474819" : "rgba(0,0,0,0.25)",
+                cursor: "pointer", transition: "all 0.2s",
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function arrowStyle(cote) {
+  return {
+    position: "absolute", top: "50%", transform: "translateY(-50%)",
+    [cote]: 8, zIndex: 3,
+    width: 34, height: 34, borderRadius: "50%",
+    border: "none", background: "rgba(255,255,255,0.85)",
+    boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+    fontSize: 22, fontWeight: 700, color: "#111", cursor: "pointer",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    lineHeight: 1, paddingBottom: 3,
+  };
 }
 
 
@@ -690,38 +793,16 @@ function PageFicheProduit({ produit, cart, setCart, onBack, onGoToCart, onBuyNow
       {/* Contenu fiche */}
       <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 40px" }}>
 
-        {/* Image grande */}
-        <div style={{
-          background: "#fff", height: 280,
-          position: "relative",
-          borderBottom: "1px solid #ebebeb",
-        }}>
-          {produit.badge && (
-            <div style={{
-              position: "absolute", top: 16, left: 16, zIndex: 2,
-              background: "#111", color: "#fff",
-              fontSize: 10, fontWeight: 700, padding: "4px 10px", borderRadius: 3,
-            }}>{produit.badge}</div>
-          )}
-          <Visuel
-            src={produit.image}
-            alt={produit.name}
-            style={{ width: "100%", height: "100%", background: "#fff" }}
-            imgStyle={{ objectFit: "contain" }}
-          />
-        </div>
-
-        {/* Vidéo du produit (si disponible) */}
-        {produit.video && (
-          <div style={{ background: "#000" }}>
-            <video
-              src={produit.video}
-              controls
-              playsInline
-              style={{ width: "100%", maxHeight: 320, display: "block" }}
-            />
-          </div>
-        )}
+        {/* Carrousel photos + vidéo */}
+        {(() => {
+          // On construit la liste des médias : images (séparées par virgule) puis vidéo
+          const images = produit.image
+            ? String(produit.image).split(",").map(s => s.trim()).filter(Boolean)
+            : [];
+          const medias = images.map(src => ({ type: "image", src }));
+          if (produit.video) medias.push({ type: "video", src: produit.video });
+          return <Carrousel medias={medias} alt={produit.name} badge={produit.badge} />;
+        })()}
 
         {/* Infos */}
         <div style={{ background: "#fff", padding: "20px 20px 24px", marginBottom: 10 }}>
