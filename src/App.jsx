@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 // ─── SUPABASE CONFIG ──────────────────────────────────────────────────────────
 const SUPABASE_URL = "https://syaljsuvapykwjjgvxlh.supabase.co";
@@ -25,6 +25,29 @@ async function saveCommande(order) {
     })
   });
   return response.ok;
+}
+
+// ─── WHATSAPP NOTIFICATION ────────────────────────────────────────────────────
+async function sendWhatsApp(order) {
+  const articles = order.cart.map(i => `${i.name} x${i.qty}`).join(", ");
+  const message = `🛍️ Nouvelle commande MoodShop !\nNom : ${order.nom}\nTél : ${order.telephone}\nArticles : ${articles}\nQuartier : ${order.quartier}\nAdresse : ${order.adresse}\nTotal : ${order.total} FCFA`;
+
+  const accountSid = "AC19548ecd6b000955e88a3fd5489f4715";
+  const authToken = "fdaf4ec93ea602ad46c4e5d533dd9784";
+  const credentials = btoa(`${accountSid}:${authToken}`);
+
+  await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Basic ${credentials}`,
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: new URLSearchParams({
+      From: "whatsapp:+14155238886",
+      To: "whatsapp:+221771848318",
+      Body: message
+    })
+  });
 }
 
 // ─── DATA ─────────────────────────────────────────────────────────────────────
@@ -64,54 +87,82 @@ const livraisonPrix = {
 };
 
 // ─── DATA ─────────────────────────────────────────────────────────────────────
-const categories = [
-  { id: "jouets",    label: "Jouets & Enfants",    emoji: "🧸", desc: "Peluches, jeux, cadeaux" },
-  { id: "lego",      label: "Lego & Figurines",    emoji: "🧱", desc: "Sets Lego, manga, collector" },
-  { id: "tech",      label: "Gadgets & Tech",      emoji: "⚡", desc: "Drones, montres, enceintes" },
-  { id: "lampes",    label: "Lampes & Déco",       emoji: "💡", desc: "Ambiance, néons, bougies" },
-  { id: "animaux",   label: "Animaux",             emoji: "🐾", desc: "Accessoires, jouets, bien-être" },
-  { id: "lifestyle", label: "Lifestyle & Outdoor",  emoji: "🌿", desc: "Hamacs, gourdes, sacs" },
-  { id: "sport",     label: "Sport",               emoji: "🏋️", desc: "Yoga, fitness, performance" },
-  { id: "tous",      label: "Tous nos produits",   emoji: "🛍️", desc: "Tout le catalogue MoodShop" },
-];
+// ─── DATA (chargée depuis Supabase) ───────────────────────────────────────────
+// Les catégories et produits sont maintenant stockés dans Supabase.
+// Ces tableaux sont remplis au chargement de l'app par fetchCategories/fetchProducts.
+let categories = [];
+let products = [];
 
-const products = [
-  { id: 1,  name: "Peluche Géante Ours",       price: 14500, cat: "jouets",    emoji: "🐻", badge: "Coup de cœur", desc: "Peluche douce et câline, idéale comme cadeau pour les enfants. Grande taille, rembourrage moelleux, lavable en machine." },
-  { id: 2,  name: "Puzzle 3D en Bois",          price: 8900,  cat: "jouets",    emoji: "🧩", badge: null,           desc: "Puzzle en bois naturel découpé au laser. Développe la logique et la créativité. Convient dès 5 ans." },
-  { id: 3,  name: "Voiture Télécommandée",      price: 22000, cat: "jouets",    emoji: "🚗", badge: "Top vente",    desc: "Voiture RC haute vitesse avec télécommande longue portée. Batterie rechargeable incluse. Idéale pour garçons et filles." },
-  { id: 4,  name: "Dînette Enfant",             price: 11000, cat: "jouets",    emoji: "🍽️", badge: null,           desc: "Set de dînette complet avec assiettes, couverts et accessoires de cuisine. Matière sécurisée sans BPA." },
-  { id: 26, name: "Pistolet à Eau Électrique",  price: 8500,  cat: "jouets", emoji: "🔫", badge: "Nouveau",      desc: "Pistolet à eau électrique rechargeable, portée jusqu'à 8 mètres. Parfait pour les jeux d'été en extérieur." },
-  { id: 27, name: "Château de Sable Deluxe",    price: 12000, cat: "jouets", emoji: "🏰", badge: null,           desc: "Kit complet de construction de château de sable avec moules, outils et seau. Stimule la créativité dès 3 ans." },
-  { id: 28, name: "Trampoline Enfant",           price: 28000, cat: "jouets", emoji: "🤸", badge: "Top vente",    desc: "Mini trampoline sécurisé avec barre de maintien amovible. Diamètre 90cm, charge max 50kg. Idéal pour l'intérieur." },
-  { id: 29, name: "Kit Peinture Créative",       price: 7500,  cat: "jouets", emoji: "🎨", badge: null,           desc: "Set complet de peinture pour enfants avec 24 couleurs, pinceaux, toiles et tablier. Dès 4 ans." },
-  { id: 30, name: "Microscope Enfant",           price: 18000, cat: "jouets", emoji: "🔬", badge: "Nouveau",      desc: "Microscope éducatif grossissement x100 à x600. Livré avec lames préparées et guide d'exploration. Dès 8 ans." },
-  { id: 31, name: "Téléphone Jouet",             price: 6500,  cat: "jouets", emoji: "📱", badge: null,           desc: "Téléphone jouet interactif avec sons, musiques et jeux. Imite un vrai smartphone. Parfait dès 18 mois." },
-  { id: 32, name: "Trottinette Enfant",          price: 22000, cat: "jouets", emoji: "🛴", badge: "Top vente",    desc: "Trottinette 3 roues réglable en hauteur, frein arrière sécurisé. Charge max 30kg. Dès 2 ans." },
-  { id: 33, name: "Doudou Musical",              price: 9500,  cat: "jouets", emoji: "🎵", badge: "Coup de cœur", desc: "Peluche musicale douce avec 8 mélodies apaisantes. Aide bébé à s'endormir. Lavable en machine." },
-  { id: 34, name: "Tableau Magnétique",          price: 11000, cat: "jouets", emoji: "🖊️", badge: null,           desc: "Tableau magnétique double face effaçable, avec lettres et chiffres magnétiques. Idéal pour apprendre en jouant." },
-  { id: 35, name: "Circuit de Billes Géant",    price: 19500, cat: "jouets", emoji: "⚪", badge: "Nouveau",      desc: "Circuit de billes en bois 100 pièces avec loopings, tunnels et rampes. Développe la motricité. Dès 4 ans." },
-  { id: 5,  name: "Set Lego City 500 pcs",      price: 35000, cat: "lego",      emoji: "🧱", badge: "Nouveau",      desc: "500 pièces pour construire une ville miniature complète. Inclus personnages, véhicules et bâtiments. Dès 7 ans." },
-  { id: 6,  name: "Figurine Dragon Ball Z",     price: 18000, cat: "lego",      emoji: "🐉", badge: "Collector",    desc: "Figurine collector haute qualité, finitions détaillées. Édition limitée pour les fans de Dragon Ball Z." },
-  { id: 7,  name: "Set Lego Technic",           price: 48000, cat: "lego",      emoji: "⚙️", badge: null,           desc: "Set Lego Technic avancé avec mécanismes fonctionnels. Pour les amateurs de construction mécanique. Dès 10 ans." },
-  { id: 8,  name: "Figurine One Piece",         price: 15000, cat: "lego",      emoji: "⚓", badge: "Nouveau",      desc: "Figurine officielle One Piece, finitions premium. Parfaite pour les collectionneurs et fans du manga." },
-  { id: 9,  name: "Mini Drone HD",              price: 29000, cat: "tech",      emoji: "🚁", badge: "Top vente",    desc: "Drone compact avec caméra HD intégrée. Stabilisation gyroscopique, facile à piloter pour débutants." },
-  { id: 10, name: "Montre Connectée",           price: 32000, cat: "tech",      emoji: "⌚", badge: null,           desc: "Smartwatch avec suivi d'activité, notifications, podomètre et moniteur de fréquence cardiaque. Compatible iOS & Android." },
-  { id: 11, name: "Lampe LED Gaming RGB",       price: 12500, cat: "tech",      emoji: "🌈", badge: "Nouveau",      desc: "Lampe LED RGB avec 16 millions de couleurs. Synchronisation musicale, contrôle via application mobile." },
-  { id: 12, name: "Mini Haut-parleur BT",       price: 9800,  cat: "tech",      emoji: "🔊", badge: null,           desc: "Enceinte Bluetooth portable, son 360° puissant. Résistante à l'eau, autonomie 10h. Idéale pour l'extérieur." },
-  { id: 13, name: "Lampe Lune 3D",              price: 9800,  cat: "lampes",    emoji: "🌙", badge: "Coup de cœur", desc: "Lampe en forme de lune avec relief 3D réaliste. Plusieurs modes d'éclairage doux, parfaite pour une ambiance cosy." },
-  { id: 14, name: "Guirlande Lumineuse",        price: 5500,  cat: "lampes",    emoji: "✨", badge: null,           desc: "Guirlande LED 5m avec 50 ampoules chaleureuses. Idéale pour décorer chambre, salon ou terrasse." },
-  { id: 15, name: "Lampe Néon Personnalisé",    price: 25000, cat: "lampes",    emoji: "💫", badge: "Nouveau",      desc: "Lampe néon LED personnalisable selon votre texte ou design. Éclairage tendance, faible consommation." },
-  { id: 16, name: "Bougie Parfumée Déco",       price: 6800,  cat: "lampes",    emoji: "🕯️", badge: null,           desc: "Bougie artisanale à la cire de soja, parfum délicat. Durée de combustion 40h. Idéale en cadeau." },
-  { id: 17, name: "Griffoir Chat Design",       price: 16000, cat: "animaux",   emoji: "🐱", badge: null,           desc: "Griffoir design moderne pour chats, avec poteau sisal et plateforme. Protège vos meubles en style." },
-  { id: 18, name: "Fontaine à Eau Animaux",     price: 11000, cat: "animaux",   emoji: "💧", badge: "Top vente",    desc: "Fontaine filtrante pour chats et chiens. Circulation continue de l'eau fraîche, filtre remplaçable inclus." },
-  { id: 19, name: "Jouet Interactif Chien",     price: 7500,  cat: "animaux",   emoji: "🐶", badge: null,           desc: "Jouet stimulant pour chien avec distributeur de friandises. Renforce l'intelligence et évite l'ennui." },
-  { id: 20, name: "Hamac de Randonnée",         price: 18500, cat: "lifestyle", emoji: "🌿", badge: null,           desc: "Hamac ultra-léger en nylon ripstop, charge max 200kg. Livré avec sangles et sac de transport." },
-  { id: 21, name: "Gourde Isotherme",           price: 7800,  cat: "lifestyle", emoji: "🧃", badge: null,           desc: "Gourde inox double paroi, garde froid 24h et chaud 12h. Sans BPA, capacité 500ml." },
-  { id: 22, name: "Sac à Dos Urbain",           price: 22000, cat: "lifestyle", emoji: "🎒", badge: "Nouveau",      desc: "Sac à dos urbain imperméable avec poche laptop 15 pouces, port USB intégré et design minimaliste." },
-  { id: 23, name: "Tapis de Yoga Premium",      price: 14000, cat: "sport",     emoji: "🧘", badge: "Top vente",    desc: "Tapis yoga antidérapant 6mm, matière écologique TPE. Marquages d'alignement, sangle de transport incluse." },
-  { id: 24, name: "Résistance Élastique Set",   price: 9500,  cat: "sport",     emoji: "💪", badge: null,           desc: "Set de 5 bandes élastiques de résistances variées. Idéal pour musculation, yoga et rééducation." },
-  { id: 25, name: "Corde à Sauter Pro",         price: 5800,  cat: "sport",     emoji: "🪢", badge: null,           desc: "Corde à sauter avec roulements à billes pour rotation fluide. Longueur réglable, poignées ergonomiques." },
-];
+// Charge les catégories depuis la table Supabase "categories"
+async function fetchCategories() {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/categories?select=*`, {
+    headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` },
+  });
+  const data = await res.json();
+  // On transforme les données Supabase vers le format attendu par le site.
+  // Le lien produit<->catégorie se fait par le NOM de la catégorie.
+  const cats = (data || []).map(c => ({
+    id: c.nom,          // l'identifiant utilisé partout = le nom
+    label: c.nom,       // le texte affiché
+    image: c.image || null,
+    desc: c.description || "",
+    emoji: "",          // pas d'emoji, on utilise les images
+  }));
+  // On ajoute "Tous nos produits" à la fin
+  cats.push({ id: "tous", label: "Tous nos produits", image: null, desc: "Tout le catalogue MoodShop", emoji: "" });
+  categories = cats;
+  return cats;
+}
+
+// Charge les produits depuis la table Supabase "produits"
+async function fetchProducts() {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/produits?select=*`, {
+    headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` },
+  });
+  const data = await res.json();
+  const prods = (data || []).map(p => ({
+    id: p.id,
+    name: p.nom,
+    price: p.prix || 0,
+    cat: p.categorie,     // doit correspondre au "nom" d'une catégorie
+    image: p.image || null,
+    video: p.video || null,
+    badge: p.badge || null,
+    desc: p.description || "",
+    emoji: "",            // plus d'emoji
+  }));
+  products = prods;
+  return prods;
+}
+
+// ─── VISUEL (image produit/catégorie, avec secours) ───────────────────────────
+// Affiche l'image si elle existe. Sinon, un fond neutre discret.
+function Visuel({ src, alt, style, imgStyle }) {
+  const [erreur, setErreur] = useState(false);
+  const base = {
+    display: "flex", alignItems: "center", justifyContent: "center",
+    overflow: "hidden", background: "#EDE5D8", ...style,
+  };
+  if (src && !erreur) {
+    return (
+      <div style={base}>
+        <img
+          src={src}
+          alt={alt || ""}
+          onError={() => setErreur(true)}
+          style={{ width: "100%", height: "100%", objectFit: "cover", ...imgStyle }}
+        />
+      </div>
+    );
+  }
+  // Secours : pas d'image -> petit texte discret
+  return (
+    <div style={base}>
+      <span style={{ fontSize: 12, color: "#b8a98f", fontWeight: 600 }}>{alt || "Image"}</span>
+    </div>
+  );
+}
+
 
 // ─── HEADER ───────────────────────────────────────────────────────────────────
 function Header({ search, setSearch, cartCount, onGoToCart, onHome }) {
@@ -370,7 +421,11 @@ function CategoryTile({ cat, onClick }) {
         transform: hov ? "translateY(-3px)" : "none",
       }}
     >
-      <span style={{ fontSize: 44 }}>{cat.emoji}</span>
+      <Visuel
+        src={cat.image}
+        alt={cat.label}
+        style={{ width: 72, height: 72, borderRadius: "50%", background: "#EDE5D8" }}
+      />
       <div style={{ textAlign: "center" }}>
         <p style={{ fontSize: 13, fontWeight: 800, color: hov ? "#474819" : "#111", margin: "0 0 3px", lineHeight: 1.3, transition: "color 0.18s" }}>
           {cat.label}
@@ -477,7 +532,10 @@ function PageProduits({ activeCat, setActiveCat, cart, setCart, onHome, onGoToCa
                 transition: "all 0.15s",
               }}
             >
-              <span style={{ fontSize: 20 }}>{cat.emoji}</span>
+              {cat.id === "tous"
+                ? <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#EDE5D8", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "#474819" }}>Tt</div>
+                : <Visuel src={cat.image} alt={cat.label} style={{ width: 30, height: 30, borderRadius: "50%", background: "#EDE5D8" }} />
+              }
               <span style={{
                 fontSize: 10, fontWeight: active ? 800 : 500,
                 color: active ? "#474819" : "#888",
@@ -508,7 +566,9 @@ function PageProduits({ activeCat, setActiveCat, cart, setCart, onHome, onGoToCa
             padding: "14px 18px", marginBottom: 16,
             display: "flex", alignItems: "center", gap: 12,
           }}>
-            <span style={{ fontSize: 32 }}>{currentCat?.emoji}</span>
+            {currentCat?.image && (
+              <Visuel src={currentCat.image} alt={currentCat.label} style={{ width: 44, height: 44, borderRadius: "50%", flexShrink: 0, background: "#EDE5D8" }} />
+            )}
             <div>
               <h2 style={{ fontSize: 18, fontWeight: 800, color: "#474819", margin: "0 0 2px" }}>
                 {currentCat?.label}
@@ -620,19 +680,35 @@ function PageFicheProduit({ produit, cart, setCart, onBack, onGoToCart, onBuyNow
         {/* Image grande */}
         <div style={{
           background: "#fff", height: 280,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 110, position: "relative",
+          position: "relative",
           borderBottom: "1px solid #ebebeb",
         }}>
           {produit.badge && (
             <div style={{
-              position: "absolute", top: 16, left: 16,
+              position: "absolute", top: 16, left: 16, zIndex: 2,
               background: "#111", color: "#fff",
               fontSize: 10, fontWeight: 700, padding: "4px 10px", borderRadius: 3,
             }}>{produit.badge}</div>
           )}
-          {produit.emoji}
+          <Visuel
+            src={produit.image}
+            alt={produit.name}
+            style={{ width: "100%", height: "100%", background: "#fff" }}
+            imgStyle={{ objectFit: "contain" }}
+          />
         </div>
+
+        {/* Vidéo du produit (si disponible) */}
+        {produit.video && (
+          <div style={{ background: "#000" }}>
+            <video
+              src={produit.video}
+              controls
+              playsInline
+              style={{ width: "100%", maxHeight: 320, display: "block" }}
+            />
+          </div>
+        )}
 
         {/* Infos */}
         <div style={{ background: "#fff", padding: "20px 20px 24px", marginBottom: 10 }}>
@@ -715,12 +791,10 @@ function PageFicheProduit({ produit, cart, setCart, onBack, onGoToCart, onBuyNow
                   >
                     <div
                       onClick={() => { setAdded(false); window.scrollTo(0, 0); onViewSimilar && onViewSimilar(p); }}
-                      style={{
-                        background: "#EDE5D8", height: 90,
-                        display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40,
-                        cursor: "pointer",
-                      }}
-                    >{p.emoji}</div>
+                      style={{ cursor: "pointer" }}
+                    >
+                      <Visuel src={p.image} alt={p.name} style={{ height: 90, background: "#EDE5D8" }} />
+                    </div>
                     <div style={{ padding: "8px 10px" }}>
                       <p
                         onClick={() => { setAdded(false); window.scrollTo(0, 0); onViewSimilar && onViewSimilar(p); }}
@@ -780,12 +854,17 @@ function ProductCard({ p, onAdd, onRemove, added, onView }) {
 
       <div
         onClick={() => onView && onView(p)}
-        style={{
-          background: "#EDE5D8", height: 140,
-          display: "flex", alignItems: "center", justifyContent: "center", fontSize: 56,
-          cursor: onView ? "pointer" : "default",
-        }}
-      >{p.emoji}</div>
+        style={{ cursor: onView ? "pointer" : "default", position: "relative" }}
+      >
+        {p.badge && (
+          <div style={{
+            position: "absolute", top: 8, left: 8, zIndex: 2,
+            background: "#111", color: "#fff",
+            fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 3,
+          }}>{p.badge}</div>
+        )}
+        <Visuel src={p.image} alt={p.name} style={{ height: 140, background: "#EDE5D8" }} />
+      </div>
       <div style={{ padding: "11px 12px 13px", flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
         <p
           onClick={() => onView && onView(p)}
@@ -868,10 +947,7 @@ function PagePanier({ cart, setCart, onBack, onOrder }) {
                   background: "#fff", border: "1px solid #ebebeb", borderRadius: 6,
                   padding: "12px 14px", display: "flex", alignItems: "center", gap: 12,
                 }}>
-                  <div style={{
-                    width: 48, height: 48, background: "#EDE5D8", borderRadius: 4,
-                    display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0,
-                  }}>{item.emoji}</div>
+                  <Visuel src={item.image} alt={item.name} style={{ width: 48, height: 48, borderRadius: 4, flexShrink: 0, background: "#EDE5D8" }} />
                   <div style={{ flex: 1 }}>
                     <p style={{ fontWeight: 700, fontSize: 13, color: "#111", margin: "0 0 3px" }}>{item.name}</p>
                     <p style={{ fontSize: 13, fontWeight: 800, color: "#111", margin: 0 }}>
@@ -1045,7 +1121,7 @@ function PageCommande({ cart, onBack, onConfirm }) {
         <div style={{ background: "#fff", border: "1px solid #ebebeb", borderRadius: 6, padding: "16px", marginBottom: 12 }}>
           {cart.map(i => (
             <div key={i.id} style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 13 }}>
-              <span style={{ color: "#555" }}>{i.emoji} {i.name} ×{i.qty}</span>
+              <span style={{ color: "#555" }}>{i.name} ×{i.qty}</span>
               <span style={{ fontWeight: 700 }}>{(i.price * i.qty).toLocaleString("fr-FR")} F</span>
             </div>
           ))}
@@ -1133,6 +1209,46 @@ export default function App() {
   const [activeCat, setActiveCat] = useState(null);
   const [cart, setCart] = useState([]);
   const [lastOrder, setLastOrder] = useState(null);
+  const [chargement, setChargement] = useState(true);
+  const [erreurChargement, setErreurChargement] = useState(false);
+
+  // Au démarrage : on va chercher les catégories et produits dans Supabase
+  useEffect(() => {
+    async function chargerDonnees() {
+      try {
+        await Promise.all([fetchCategories(), fetchProducts()]);
+        setChargement(false);
+      } catch (e) {
+        console.error("Erreur de chargement des données:", e);
+        setErreurChargement(true);
+        setChargement(false);
+      }
+    }
+    chargerDonnees();
+  }, []);
+
+  // Écran d'attente pendant le chargement des produits
+  if (chargement) return (
+    <div style={{
+      minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
+      fontFamily: "'Helvetica Neue', Arial, sans-serif", background: "#faf8f4", color: "#474819",
+      fontSize: 15, fontWeight: 600,
+    }}>
+      Chargement de la boutique…
+    </div>
+  );
+
+  // Écran d'erreur si Supabase est injoignable
+  if (erreurChargement) return (
+    <div style={{
+      minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+      fontFamily: "'Helvetica Neue', Arial, sans-serif", background: "#faf8f4", color: "#474819",
+      fontSize: 15, gap: 8, textAlign: "center", padding: 20,
+    }}>
+      <p style={{ fontWeight: 700 }}>Impossible de charger les produits.</p>
+      <p style={{ color: "#888", fontSize: 13 }}>Vérifiez votre connexion et réessayez.</p>
+    </div>
+  );
 
   function goHome() { setPage("accueil"); setActiveCat(null); }
 
@@ -1149,11 +1265,12 @@ export default function App() {
     setLastOrder(order);
     setCart([]);
     setPage("confirmation");
-    // Enregistrer dans Supabase
+    // Enregistrer dans Supabase + envoyer WhatsApp
     try {
       await saveCommande(order);
+      await sendWhatsApp(order);
     } catch(e) {
-      console.error("Erreur Supabase:", e);
+      console.error("Erreur:", e);
     }
   }
 
