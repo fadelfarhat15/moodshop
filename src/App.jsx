@@ -135,6 +135,23 @@ async function fetchProducts() {
   return prods;
 }
 
+// Vérifie si un produit appartient à une catégorie donnée.
+// La colonne "categorie" peut contenir plusieurs catégories séparées par une virgule,
+// ex: "Jouets & Kids, Sport" -> le produit est dans les deux.
+function produitDansCategorie(produit, categorieId) {
+  if (!produit.cat) return false;
+  const cats = String(produit.cat).split(",").map(c => c.trim());
+  return cats.includes(categorieId);
+}
+
+// Renvoie true si deux produits partagent au moins une catégorie (pour "produits similaires")
+function partagentCategorie(a, b) {
+  if (!a.cat || !b.cat) return false;
+  const catsA = String(a.cat).split(",").map(c => c.trim());
+  const catsB = String(b.cat).split(",").map(c => c.trim());
+  return catsA.some(c => catsB.includes(c));
+}
+
 // ─── VISUEL (image produit/catégorie, avec secours) ───────────────────────────
 // Affiche l'image si elle existe. Sinon, un fond neutre discret.
 function Visuel({ src, alt, style, imgStyle }) {
@@ -464,7 +481,7 @@ function PageProduits({ activeCat, setActiveCat, cart, setCart, onHome, onGoToCa
   const filtered = activeCat === "tous"
     ? products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
     : products.filter(p =>
-        p.cat === activeCat &&
+        produitDansCategorie(p, activeCat) &&
         p.name.toLowerCase().includes(search.toLowerCase())
       );
 
@@ -769,7 +786,7 @@ function PageFicheProduit({ produit, cart, setCart, onBack, onGoToCart, onBuyNow
 
         {/* Produits similaires */}
         {(() => {
-          const similaires = products.filter(p => p.cat === produit.cat && p.id !== produit.id).slice(0, 4);
+          const similaires = products.filter(p => partagentCategorie(p, produit) && p.id !== produit.id).slice(0, 4);
           if (similaires.length === 0) return null;
           return (
             <div style={{ padding: "28px 20px 40px" }}>
