@@ -412,34 +412,30 @@ function CategoryTile({ cat, onClick }) {
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{
-        background: hov ? "#E4E35D" : "#fff",
+        position: "relative",
         border: `2px solid ${hov ? "#E4E35D" : "#ebebeb"}`,
-        borderRadius: 8, padding: "22px 14px",
-        display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
+        borderRadius: 8, overflow: "hidden",
+        height: 150,
         cursor: "pointer", transition: "all 0.18s",
         boxShadow: hov ? "0 6px 20px rgba(0,0,0,0.12)" : "0 1px 4px rgba(0,0,0,0.04)",
         transform: hov ? "translateY(-3px)" : "none",
       }}
     >
+      {/* Image en fond, prend toute la place */}
       <Visuel
         src={cat.image}
         alt={cat.label}
-        style={{ width: 72, height: 72, borderRadius: "50%", background: "#EDE5D8" }}
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", background: "#EDE5D8" }}
       />
-      <div style={{ textAlign: "center" }}>
-        <p style={{ fontSize: 13, fontWeight: 800, color: hov ? "#474819" : "#111", margin: "0 0 3px", lineHeight: 1.3, transition: "color 0.18s" }}>
+      {/* Nom de la catégorie, dans un rectangle blanc en haut à gauche */}
+      <div style={{
+        position: "absolute", top: 12, left: 12, zIndex: 2,
+        background: "#fff", borderRadius: 6, padding: "6px 12px",
+        boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
+      }}>
+        <p style={{ fontSize: 14, fontWeight: 800, color: "#111", margin: 0, lineHeight: 1.2 }}>
           {cat.label}
         </p>
-        <p style={{ fontSize: 10, color: hov ? "#555" : "#999", margin: 0, lineHeight: 1.4, transition: "color 0.18s" }}>
-          {cat.desc}
-        </p>
-      </div>
-      <div style={{
-        background: hov ? "#474819" : "#E4E35D", color: hov ? "#fff" : "#474819",
-        borderRadius: 20, padding: "4px 14px",
-        fontSize: 10, fontWeight: 700, letterSpacing: 0.5, transition: "all 0.18s",
-      }}>
-        Voir →
       </div>
     </div>
   );
