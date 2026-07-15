@@ -5,7 +5,7 @@ const SUPABASE_URL = "https://syaljsuvapykwjjgvxlh.supabase.co";
 const SUPABASE_KEY = "sb_publishable_qwi8xbDKJBz9xyMUjVZxIA_bW3s8rJC";
 
 async function saveCommande(order) {
-  const articles = order.cart.map(i => `${i.name} x${i.qty}`).join(", ");
+  const articles = order.cart.map(i => `${i.name}${i.variante ? ` (${i.variante})` : ""} x${i.qty}`).join(", ");
   const response = await fetch(`${SUPABASE_URL}/rest/v1/commandes`, {
     method: "POST",
     headers: {
@@ -29,7 +29,7 @@ async function saveCommande(order) {
 
 // ─── WHATSAPP NOTIFICATION ────────────────────────────────────────────────────
 async function sendWhatsApp(order) {
-  const articles = order.cart.map(i => `${i.name} x${i.qty}`).join(", ");
+  const articles = order.cart.map(i => `${i.name}${i.variante ? ` (${i.variante})` : ""} x${i.qty}`).join(", ");
   const message = `🛍️ Nouvelle commande MoodShop !\nNom : ${order.nom}\nTél : ${order.telephone}\nArticles : ${articles}\nQuartier : ${order.quartier}\nAdresse : ${order.adresse}\nTotal : ${order.total} FCFA`;
 
   const accountSid = "AC19548ecd6b000955e88a3fd5489f4715";
@@ -727,20 +727,43 @@ function PageFicheProduit({ produit, cart, setCart, onBack, onGoToCart, onBuyNow
   const [qty, setQty] = useState(1);
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
 
+  // Variantes du produit (ex: "Rouge, Bleu, Vert"). Vide si le produit n'en a pas.
+  const variantes = produit.variantes
+    ? String(produit.variantes).split(",").map(v => v.trim()).filter(Boolean)
+    : [];
+  const [varianteChoisie, setVarianteChoisie] = useState(null);
+  // Le produit exige-t-il un choix ? (il a des variantes mais aucune n'est encore choisie)
+  const choixRequis = variantes.length > 0 && !varianteChoisie;
+
+  // Construit l'objet à mettre dans le panier, en incluant la variante choisie
+  function ligneProduit() {
+    return {
+      ...produit,
+      qty,
+      variante: varianteChoisie || null,
+      // identifiant unique panier : produit + variante (2 couleurs = 2 lignes)
+      cartKey: varianteChoisie ? `${produit.id}::${varianteChoisie}` : `${produit.id}`,
+    };
+  }
+
   function buyNow() {
+    if (choixRequis) return;
+    const ligne = ligneProduit();
     setCart(prev => {
-      const ex = prev.find(i => i.id === produit.id);
-      if (ex) return prev.map(i => i.id === produit.id ? { ...i, qty: i.qty + qty } : i);
-      return [...prev, { ...produit, qty }];
+      const ex = prev.find(i => (i.cartKey || i.id) === ligne.cartKey);
+      if (ex) return prev.map(i => (i.cartKey || i.id) === ligne.cartKey ? { ...i, qty: i.qty + qty } : i);
+      return [...prev, ligne];
     });
     onBuyNow();
   }
 
   function addToCart() {
+    if (choixRequis) return;
+    const ligne = ligneProduit();
     setCart(prev => {
-      const ex = prev.find(i => i.id === produit.id);
-      if (ex) return prev.map(i => i.id === produit.id ? { ...i, qty: i.qty + qty } : i);
-      return [...prev, { ...produit, qty }];
+      const ex = prev.find(i => (i.cartKey || i.id) === ligne.cartKey);
+      if (ex) return prev.map(i => (i.cartKey || i.id) === ligne.cartKey ? { ...i, qty: i.qty + qty } : i);
+      return [...prev, ligne];
     });
     setAdded(true);
     setTimeout(() => setAdded(false), 1500);
@@ -825,6 +848,41 @@ function PageFicheProduit({ produit, cart, setCart, onBack, onGoToCart, onBuyNow
           position: "sticky", bottom: 16,
           padding: "0 20px", marginTop: 24,
         }}>
+          {/* Sélecteur de variante (couleur/option) si le produit en a */}
+          {variantes.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: "#111", margin: "0 0 8px" }}>
+                Choisissez une option{choixRequis ? " *" : ""} :
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {variantes.map(v => {
+                  const active = varianteChoisie === v;
+                  return (
+                    <button
+                      key={v}
+                      onClick={() => setVarianteChoisie(v)}
+                      style={{
+                        padding: "8px 16px", borderRadius: 20, cursor: "pointer",
+                        fontFamily: "inherit", fontSize: 13, fontWeight: 700,
+                        border: active ? "2px solid #474819" : "1.5px solid #d5d5d5",
+                        background: active ? "#E4E35D" : "#fff",
+                        color: active ? "#474819" : "#555",
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      {active ? "✓ " : ""}{v}
+                    </button>
+                  );
+                })}
+              </div>
+              {choixRequis && (
+                <p style={{ fontSize: 11, color: "#c0392b", margin: "8px 0 0" }}>
+                  Veuillez choisir une option avant d'ajouter au panier.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Sélecteur quantité */}
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "center",
@@ -844,22 +902,24 @@ function PageFicheProduit({ produit, cart, setCart, onBack, onGoToCart, onBuyNow
               display: "flex", alignItems: "center", justifyContent: "center",
             }}>+</button>
           </div>
-          <button onClick={addToCart} style={{
+          <button onClick={addToCart} disabled={choixRequis} style={{
             width: "100%", padding: "15px",
-            background: added ? "#c9c83a" : "#E4E35D",
-            color: "#474819", border: "2px solid #474819", borderRadius: 30,
-            fontWeight: 700, fontSize: 15, cursor: "pointer",
+            color: choixRequis ? "#999" : "#474819",
+            border: `2px solid ${choixRequis ? "#ccc" : "#474819"}`, borderRadius: 30,
+            fontWeight: 700, fontSize: 15, cursor: choixRequis ? "not-allowed" : "pointer",
             fontFamily: "inherit", transition: "all 0.2s", marginBottom: 10,
             background: added ? "#c9c83a" : "transparent",
+            opacity: choixRequis ? 0.6 : 1,
           }}>
             {added ? "✓ Ajouté au panier !" : "Ajouter au panier"}
           </button>
-          <button onClick={buyNow} style={{
+          <button onClick={buyNow} disabled={choixRequis} style={{
             width: "100%", padding: "14px",
-            background: "#E4E35D",
-            color: "#474819", border: "none", borderRadius: 30,
-            fontWeight: 800, fontSize: 15, cursor: "pointer",
+            background: choixRequis ? "#eee" : "#E4E35D",
+            color: choixRequis ? "#999" : "#474819", border: "none", borderRadius: 30,
+            fontWeight: 800, fontSize: 15, cursor: choixRequis ? "not-allowed" : "pointer",
             fontFamily: "inherit",
+            opacity: choixRequis ? 0.6 : 1,
           }}>
             Acheter maintenant
           </button>
@@ -974,15 +1034,24 @@ function ProductCard({ p, onAdd, onRemove, added, onView }) {
           <span style={{ fontSize: 15, fontWeight: 800, color: "#111" }}>
             {p.price.toLocaleString("fr-FR")} F
           </span>
-          {added ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <button onClick={() => onRemove && onRemove(p)} style={{ width: 24, height: 24, border: "1.5px solid #e0e0e0", background: "#fff", borderRadius: 3, cursor: "pointer", fontWeight: 800, fontSize: 14, color: "#111" }}>−</button>
-              <span style={{ fontWeight: 800, fontSize: 13, minWidth: 16, textAlign: "center", color: "#111" }}>{added}</span>
-              <button onClick={() => onAdd(p)} style={{ width: 24, height: 24, border: "none", background: "#474819", borderRadius: 3, cursor: "pointer", fontWeight: 800, fontSize: 14, color: "#fff" }}>+</button>
-            </div>
-          ) : (
-            <button onClick={() => onAdd(p)} style={{ background: "transparent", color: "#474819", border: "1.5px solid #E4E35D", borderRadius: 3, padding: "5px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+ Panier</button>
-          )}
+          {(() => {
+            // Si le produit a des variantes, on force le passage par la fiche pour choisir
+            const aVariantes = p.variantes && String(p.variantes).trim().length > 0;
+            if (aVariantes) {
+              return (
+                <button onClick={() => onView && onView(p)} style={{ background: "transparent", color: "#474819", border: "1.5px solid #E4E35D", borderRadius: 3, padding: "5px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Choisir</button>
+              );
+            }
+            return added ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <button onClick={() => onRemove && onRemove(p)} style={{ width: 24, height: 24, border: "1.5px solid #e0e0e0", background: "#fff", borderRadius: 3, cursor: "pointer", fontWeight: 800, fontSize: 14, color: "#111" }}>−</button>
+                <span style={{ fontWeight: 800, fontSize: 13, minWidth: 16, textAlign: "center", color: "#111" }}>{added}</span>
+                <button onClick={() => onAdd(p)} style={{ width: 24, height: 24, border: "none", background: "#474819", borderRadius: 3, cursor: "pointer", fontWeight: 800, fontSize: 14, color: "#fff" }}>+</button>
+              </div>
+            ) : (
+              <button onClick={() => onAdd(p)} style={{ background: "transparent", color: "#474819", border: "1.5px solid #E4E35D", borderRadius: 3, padding: "5px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+ Panier</button>
+            );
+          })()}
         </div>
       </div>
     </div>
@@ -996,10 +1065,10 @@ function PagePanier({ cart, setCart, onBack, onOrder }) {
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
 
-  function updateQty(id, delta) {
-    setCart(prev => prev.map(i => i.id === id ? { ...i, qty: Math.max(1, i.qty + delta) } : i));
+  function updateQty(key, delta) {
+    setCart(prev => prev.map(i => (i.cartKey || i.id) === key ? { ...i, qty: Math.max(1, i.qty + delta) } : i));
   }
-  function remove(id) { setCart(prev => prev.filter(i => i.id !== id)); }
+  function remove(key) { setCart(prev => prev.filter(i => (i.cartKey || i.id) !== key)); }
 
   return (
     <div style={{ fontFamily: "'DM Sans', sans-serif", minHeight: "100vh", background: "#FCF6F0" }}>
@@ -1037,23 +1106,26 @@ function PagePanier({ cart, setCart, onBack, onOrder }) {
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
               {cart.map(item => (
-                <div key={item.id} style={{
+                <div key={item.cartKey || item.id} style={{
                   background: "#fff", border: "1px solid #ebebeb", borderRadius: 6,
                   padding: "12px 14px", display: "flex", alignItems: "center", gap: 12,
                 }}>
                   <Visuel src={item.image} alt={item.name} style={{ width: 48, height: 48, borderRadius: 4, flexShrink: 0, background: "#EDE5D8" }} />
                   <div style={{ flex: 1 }}>
                     <p style={{ fontWeight: 700, fontSize: 13, color: "#111", margin: "0 0 3px" }}>{item.name}</p>
+                    {item.variante && (
+                      <p style={{ fontSize: 11, color: "#888", margin: "0 0 3px" }}>Option : {item.variante}</p>
+                    )}
                     <p style={{ fontSize: 13, fontWeight: 800, color: "#111", margin: 0 }}>
                       {(item.price * item.qty).toLocaleString("fr-FR")} F
                     </p>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <button onClick={() => updateQty(item.id, -1)} style={{ width: 26, height: 26, border: "1.5px solid #e0e0e0", background: "#fff", borderRadius: 3, cursor: "pointer", fontWeight: 700, fontSize: 15, color: "#474819" }}>−</button>
+                    <button onClick={() => updateQty(item.cartKey || item.id, -1)} style={{ width: 26, height: 26, border: "1.5px solid #e0e0e0", background: "#fff", borderRadius: 3, cursor: "pointer", fontWeight: 700, fontSize: 15, color: "#474819" }}>−</button>
                     <span style={{ fontWeight: 700, fontSize: 13, minWidth: 18, textAlign: "center" }}>{item.qty}</span>
-                    <button onClick={() => updateQty(item.id, 1)} style={{ width: 26, height: 26, border: "none", background: "#E4E35D", borderRadius: 3, cursor: "pointer", fontWeight: 700, fontSize: 15, color: "#474819" }}>+</button>
+                    <button onClick={() => updateQty(item.cartKey || item.id, 1)} style={{ width: 26, height: 26, border: "none", background: "#E4E35D", borderRadius: 3, cursor: "pointer", fontWeight: 700, fontSize: 15, color: "#474819" }}>+</button>
                   </div>
-                  <button onClick={() => remove(item.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ccc", fontSize: 20, padding: 4, lineHeight: 1 }}>×</button>
+                  <button onClick={() => remove(item.cartKey || item.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ccc", fontSize: 20, padding: 4, lineHeight: 1 }}>×</button>
                 </div>
               ))}
             </div>
@@ -1214,8 +1286,8 @@ function PageCommande({ cart, onBack, onConfirm }) {
         <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: "#999", margin: "0 0 10px" }}>Ma commande</p>
         <div style={{ background: "#fff", border: "1px solid #ebebeb", borderRadius: 6, padding: "16px", marginBottom: 12 }}>
           {cart.map(i => (
-            <div key={i.id} style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 13 }}>
-              <span style={{ color: "#555" }}>{i.name} ×{i.qty}</span>
+            <div key={i.cartKey || i.id} style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 13 }}>
+              <span style={{ color: "#555" }}>{i.name}{i.variante ? ` (${i.variante})` : ""} ×{i.qty}</span>
               <span style={{ fontWeight: 700 }}>{(i.price * i.qty).toLocaleString("fr-FR")} F</span>
             </div>
           ))}
