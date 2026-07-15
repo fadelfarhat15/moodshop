@@ -1396,10 +1396,16 @@ export default function App() {
   // Écran d'attente pendant le chargement des produits
   if (chargement) return (
     <div style={{
-      minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
+      minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
       fontFamily: "'Helvetica Neue', Arial, sans-serif", background: "#faf8f4", color: "#474819",
-      fontSize: 15, fontWeight: 600,
+      fontSize: 15, fontWeight: 600, gap: 16,
     }}>
+      <div style={{
+        background: "#ff0000", color: "#fff", padding: "12px 24px", borderRadius: 8,
+        fontSize: 18, fontWeight: 900, letterSpacing: 1,
+      }}>
+        VERSION TEST 15H30
+      </div>
       Chargement de la boutique…
     </div>
   );
