@@ -72,7 +72,7 @@ let products = [];
 
 // Charge les catégories depuis la table Supabase "categories"
 async function fetchCategories() {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/categories?select=*`, {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/categories?select=nom,image`, {
     headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` },
   });
   const data = await res.json();
@@ -93,7 +93,7 @@ async function fetchCategories() {
 
 // Charge les produits depuis la table Supabase "produits"
 async function fetchProducts() {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/produits?select=*`, {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/produits?select=id,nom,prix,categorie,image,video,badge,description,variantes`, {
     headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` },
   });
   const data = await res.json();
@@ -146,6 +146,8 @@ function Visuel({ src, alt, style, imgStyle }) {
         <img
           src={premiere}
           alt={alt || ""}
+          loading="lazy"
+          decoding="async"
           onError={() => setErreur(true)}
           style={{ width: "100%", height: "100%", objectFit: "cover", ...imgStyle }}
         />
@@ -207,7 +209,7 @@ function Carrousel({ medias, alt, badge }) {
         style={{ height: 300, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", background: media.type === "video" ? "#000" : "#fff" }}
       >
         {media.type === "video" ? (
-          <video src={media.src} controls playsInline style={{ width: "100%", maxHeight: 300, display: "block" }} />
+          <video src={media.src} controls playsInline preload="none" style={{ width: "100%", maxHeight: 300, display: "block" }} />
         ) : (
           <img src={media.src} alt={alt || ""} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
         )}
