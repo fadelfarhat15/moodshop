@@ -27,29 +27,6 @@ async function saveCommande(order) {
   return response.ok;
 }
 
-// ─── WHATSAPP NOTIFICATION ────────────────────────────────────────────────────
-async function sendWhatsApp(order) {
-  const articles = order.cart.map(i => `${i.name}${i.variante ? ` (${i.variante})` : ""} x${i.qty}`).join(", ");
-  const message = `🛍️ Nouvelle commande MoodShop !\nNom : ${order.nom}\nTél : ${order.telephone}\nArticles : ${articles}\nQuartier : ${order.quartier}\nAdresse : ${order.adresse}\nTotal : ${order.total} FCFA`;
-
-  const accountSid = "AC19548ecd6b000955e88a3fd5489f4715";
-  const authToken = "fdaf4ec93ea602ad46c4e5d533dd9784";
-  const credentials = btoa(`${accountSid}:${authToken}`);
-
-  await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Basic ${credentials}`,
-      "Content-Type": "application/x-www-form-urlencoded"
-    },
-    body: new URLSearchParams({
-      From: "whatsapp:+14155238886",
-      To: "whatsapp:+221771848318",
-      Body: message
-    })
-  });
-}
-
 // ─── DATA ─────────────────────────────────────────────────────────────────────
 
 const livraisonPrix = {
@@ -1432,10 +1409,11 @@ export default function App() {
     setLastOrder(order);
     setCart([]);
     setPage("confirmation");
-    // Enregistrer dans Supabase + envoyer WhatsApp
+    // Enregistrer la commande dans Supabase.
+    // La notification Telegram est envoyée automatiquement côté serveur
+    // (webhook Supabase -> Edge Function), rien à faire ici.
     try {
       await saveCommande(order);
-      await sendWhatsApp(order);
     } catch(e) {
       console.error("Erreur:", e);
     }
