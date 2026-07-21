@@ -165,7 +165,9 @@ function Visuel({ src, alt, style, imgStyle }) {
 // On peut faire glisser au doigt, et des petits points indiquent la position.
 function Carrousel({ medias, alt, badge }) {
   const [index, setIndex] = useState(0);
+  const [dragX, setDragX] = useState(0);      // décalage en cours de glissement (px)
   const [startX, setStartX] = useState(null);
+  const [largeur, setLargeur] = useState(0);  // largeur de la zone (pour calculer le %)
 
   if (!medias || medias.length === 0) {
     return (
@@ -176,22 +178,44 @@ function Carrousel({ medias, alt, badge }) {
   }
 
   const total = medias.length;
-  const aller = (i) => setIndex(Math.max(0, Math.min(total - 1, i)));
 
-  // Gestion du glissement tactile
-  function onTouchStart(e) { setStartX(e.touches[0].clientX); }
-  function onTouchEnd(e) {
+  // Mesure la largeur de la zone au montage (pour le suivi du doigt)
+  function mesurer(el) {
+    if (el && el.offsetWidth !== largeur) setLargeur(el.offsetWidth);
+  }
+
+  // Début du glissement
+  function onTouchStart(e) {
+    setStartX(e.touches[0].clientX);
+    setDragX(0);
+  }
+  // Pendant le glissement : la bande suit le doigt en temps réel
+  function onTouchMove(e) {
     if (startX === null) return;
-    const delta = e.changedTouches[0].clientX - startX;
-    if (delta > 40) aller(index - 1);      // glisse vers la droite -> précédent
-    else if (delta < -40) aller(index + 1); // glisse vers la gauche -> suivant
+    let delta = e.touches[0].clientX - startX;
+    // Résistance aux extrémités (on ne glisse pas dans le vide)
+    if ((index === 0 && delta > 0) || (index === total - 1 && delta < 0)) {
+      delta = delta * 0.3;
+    }
+    setDragX(delta);
+  }
+  // Fin du glissement : on décide si on change d'image
+  function onTouchEnd() {
+    if (startX === null) return;
+    const seuil = largeur * 0.18; // il faut glisser ~18% de la largeur pour changer
+    if (dragX < -seuil && index < total - 1) setIndex(index + 1);
+    else if (dragX > seuil && index > 0) setIndex(index - 1);
+    setDragX(0);
     setStartX(null);
   }
 
-  const media = medias[index];
+  const aller = (i) => setIndex(Math.max(0, Math.min(total - 1, i)));
+
+  // Position de la bande : on décale de (index * largeur) + le glissement en cours
+  const offset = -index * largeur + dragX;
 
   return (
-    <div style={{ position: "relative", background: "#fff", borderBottom: "1px solid #ebebeb" }}>
+    <div style={{ position: "relative", background: "#fff", borderBottom: "1px solid #ebebeb", overflow: "hidden" }}>
       {badge && (
         <div style={{
           position: "absolute", top: 16, left: 16, zIndex: 3,
@@ -200,17 +224,35 @@ function Carrousel({ medias, alt, badge }) {
         }}>{badge}</div>
       )}
 
-      {/* Zone média */}
+      {/* Zone visible : contient la bande de toutes les images côte à côte */}
       <div
+        ref={mesurer}
         onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
-        style={{ height: 300, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", background: media.type === "video" ? "#000" : "#fff" }}
+        style={{ height: 300, overflow: "hidden", touchAction: "pan-y" }}
       >
-        {media.type === "video" ? (
-          <video src={media.src} controls playsInline preload="none" style={{ width: "100%", maxHeight: 300, display: "block" }} />
-        ) : (
-          <img src={media.src} alt={alt || ""} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-        )}
+        {/* La bande qui glisse : toutes les images alignées horizontalement */}
+        <div style={{
+          display: "flex", height: "100%",
+          width: `${total * 100}%`,
+          transform: `translateX(${offset}px)`,
+          transition: startX === null ? "transform 0.3s ease" : "none",
+        }}>
+          {medias.map((media, i) => (
+            <div key={i} style={{
+              width: largeur || "100%", height: "100%", flexShrink: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: media.type === "video" ? "#000" : "#fff",
+            }}>
+              {media.type === "video" ? (
+                <video src={media.src} controls playsInline preload="none" style={{ width: "100%", maxHeight: 300, display: "block" }} />
+              ) : (
+                <img src={media.src} alt={alt || ""} draggable={false} style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }} />
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Flèches (visibles s'il y a plusieurs médias) */}
