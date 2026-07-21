@@ -246,7 +246,7 @@ function Carrousel({ medias, alt, badge }) {
               background: "#f4f0ea",
             }}>
               {media.type === "video" ? (
-                <video src={media.src} controls playsInline preload="none" style={{ height: "100%", maxWidth: "100%", objectFit: "contain", display: "block", borderRadius: 4 }} />
+                <video src={media.src} controls playsInline preload="metadata" style={{ height: "100%", maxWidth: "100%", objectFit: "contain", display: "block", borderRadius: 4 }} />
               ) : (
                 <img src={media.src} alt={alt || ""} draggable={false} style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }} />
               )}
