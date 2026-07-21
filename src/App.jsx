@@ -83,10 +83,9 @@ async function fetchCategories() {
     label: c.nom,       // le texte affiché
     image: c.image || null,
     desc: c.description || "",
-    emoji: "",          // pas d'emoji, on utilise les images
   }));
   // On ajoute "Tous nos produits" à la fin
-  cats.push({ id: "tous", label: "Tous nos produits", image: null, desc: "Tout le catalogue MoodShop", emoji: "" });
+  cats.push({ id: "tous", label: "Tous nos produits", image: null, desc: "Tout le catalogue MoodShop" });
   categories = cats;
   return cats;
 }
@@ -107,7 +106,6 @@ async function fetchProducts() {
     badge: p.badge || null,
     desc: p.description || "",
     variantes: p.variantes || null,   // couleurs/options du produit
-    emoji: "",            // plus d'emoji
   }));
   products = prods;
   return prods;
@@ -997,7 +995,12 @@ function ProductCard({ p, onAdd, onRemove, added, onView }) {
             fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 3,
           }}>{p.badge}</div>
         )}
-        <Visuel src={p.image} alt={p.name} style={{ height: 140, background: "#EDE5D8" }} />
+        <Visuel
+          src={p.image}
+          alt={p.name}
+          style={{ height: 180, background: "#f4f0ea" }}
+          imgStyle={{ objectFit: "contain", padding: 8 }}
+        />
       </div>
       <div style={{ padding: "11px 12px 13px", flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
         <p
