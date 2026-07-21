@@ -224,15 +224,15 @@ function Carrousel({ medias, alt, badge }) {
         }}>{badge}</div>
       )}
 
-      {/* Zone visible : contient la bande de toutes les images côte à côte */}
+      {/* Zone visible : contient la bande de tous les médias côte à côte */}
       <div
         ref={mesurer}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
-        style={{ height: 300, overflow: "hidden", touchAction: "pan-y", overscrollBehaviorX: "contain" }}
+        style={{ height: 420, overflow: "hidden", touchAction: "pan-y", overscrollBehaviorX: "contain" }}
       >
-        {/* La bande qui glisse : toutes les images alignées horizontalement */}
+        {/* La bande qui glisse : tous les médias alignés horizontalement */}
         <div style={{
           display: "flex", height: "100%",
           width: `${total * 100}%`,
@@ -243,10 +243,10 @@ function Carrousel({ medias, alt, badge }) {
             <div key={i} style={{
               width: largeur || "100%", height: "100%", flexShrink: 0,
               display: "flex", alignItems: "center", justifyContent: "center",
-              background: media.type === "video" ? "#000" : "#fff",
+              background: "#f4f0ea",
             }}>
               {media.type === "video" ? (
-                <video src={media.src} controls playsInline preload="none" style={{ width: "100%", maxHeight: 300, display: "block" }} />
+                <video src={media.src} controls playsInline preload="none" style={{ height: "100%", maxWidth: "100%", objectFit: "contain", display: "block", borderRadius: 4 }} />
               ) : (
                 <img src={media.src} alt={alt || ""} draggable={false} style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }} />
               )}
