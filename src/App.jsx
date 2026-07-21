@@ -230,7 +230,7 @@ function Carrousel({ medias, alt, badge }) {
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
-        style={{ height: 300, overflow: "hidden", touchAction: "pan-y" }}
+        style={{ height: 300, overflow: "hidden", touchAction: "pan-y", overscrollBehaviorX: "contain" }}
       >
         {/* La bande qui glisse : toutes les images alignées horizontalement */}
         <div style={{
@@ -792,10 +792,15 @@ function PageFicheProduit({ produit, cart, setCart, onBack, onGoToCart, onBuyNow
   return (
     <div
       style={{ fontFamily: "'DM Sans', sans-serif", minHeight: "100vh", background: "#FCF6F0" }}
-      onTouchStart={e => { window._touchStartX = e.touches[0].clientX; }}
+      onTouchStart={e => {
+        window._touchStartX = e.touches[0].clientX;
+        // On mémorise si le geste part bien du bord gauche de l'écran
+        window._touchFromEdge = e.touches[0].clientX < 30;
+      }}
       onTouchEnd={e => {
         const diff = e.changedTouches[0].clientX - (window._touchStartX || 0);
-        if (diff > 80) { onBack(); }
+        // Retour uniquement si : geste parti du bord gauche ET glissé d'au moins 90px vers la droite
+        if (window._touchFromEdge && diff > 90) { onBack(); }
       }}
     >
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700;800&display=swap" rel="stylesheet" />
