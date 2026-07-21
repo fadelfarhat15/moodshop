@@ -128,6 +128,20 @@ function partagentCategorie(a, b) {
   return catsA.some(c => catsB.includes(c));
 }
 
+// Recherche d'un produit : cherche dans le NOM, la DESCRIPTION et la CATÉGORIE.
+// Ex: écrire "one piece" dans la description d'une figurine la rend trouvable
+// même si son titre est juste "Luffy 34 cm".
+function produitCorrespond(produit, recherche) {
+  const q = recherche.toLowerCase().trim();
+  if (!q) return true;
+  const texte = [
+    produit.name || "",
+    produit.desc || "",
+    produit.cat || "",
+  ].join(" ").toLowerCase();
+  return texte.includes(q);
+}
+
 // ─── VISUEL (image produit/catégorie, avec secours) ───────────────────────────
 // Affiche l'image si elle existe. Sinon, un fond neutre discret.
 function Visuel({ src, alt, style, imgStyle }) {
@@ -393,7 +407,7 @@ function PageAccueil({ cart, setCart, onSelectCategory, onGoToCart, onBuyNow }) 
   );
 
   const searchResults = search.trim()
-    ? products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
+    ? products.filter(p => produitCorrespond(p, search))
     : [];
   const hasSearch = search.trim().length > 0;
 
@@ -602,14 +616,14 @@ function PageProduits({ activeCat, setActiveCat, cart, setCart, onHome, onGoToCa
   );
 
   const filtered = activeCat === "tous"
-    ? products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
+    ? products.filter(p => produitCorrespond(p, search))
     : products.filter(p =>
         produitDansCategorie(p, activeCat) &&
-        p.name.toLowerCase().includes(search.toLowerCase())
+        produitCorrespond(p, search)
       );
 
   const searchFiltered = search.trim()
-    ? products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
+    ? products.filter(p => produitCorrespond(p, search))
     : filtered;
 
   function addToCart(p) {
