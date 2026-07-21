@@ -92,7 +92,7 @@ async function fetchCategories() {
 
 // Charge les produits depuis la table Supabase "produits"
 async function fetchProducts() {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/produits?select=id,nom,prix,categorie,image,video,badge,description,variantes`, {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/produits?select=id,nom,prix,categorie,image,video,badge,description,variantes,statut`, {
     headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` },
   });
   const data = await res.json();
@@ -106,6 +106,7 @@ async function fetchProducts() {
     badge: p.badge || null,
     desc: p.description || "",
     variantes: p.variantes || null,   // couleurs/options du produit
+    statut: (p.statut || "").toLowerCase().trim(),  // "", "rupture" ou "avenir"
   }));
   products = prods;
   return prods;
@@ -126,6 +127,15 @@ function partagentCategorie(a, b) {
   const catsA = String(a.cat).split(",").map(c => c.trim());
   const catsB = String(b.cat).split(",").map(c => c.trim());
   return catsA.some(c => catsB.includes(c));
+}
+
+// Infos d'affichage selon le statut d'un produit.
+// Renvoie null si le produit est disponible (rien de spécial à afficher).
+function infoStatut(produit) {
+  const s = produit.statut;
+  if (s === "rupture") return { indisponible: true, label: "Rupture de stock", couleur: "#c0392b" };
+  if (s === "avenir")  return { indisponible: true, label: "Bientôt disponible", couleur: "#8a6d1f" };
+  return null; // disponible
 }
 
 // Recherche d'un produit : cherche dans le NOM, la DESCRIPTION et la CATÉGORIE.
@@ -769,6 +779,12 @@ function PageFicheProduit({ produit, cart, setCart, onBack, onGoToCart, onBuyNow
   // Le produit exige-t-il un choix ? (il a des variantes mais aucune n'est encore choisie)
   const choixRequis = variantes.length > 0 && !varianteChoisie;
 
+  // Statut de disponibilité (rupture / à venir). Si indisponible, on bloque l'achat.
+  const statut = infoStatut(produit);
+  const indisponible = statut && statut.indisponible;
+  // On ne peut acheter que si : produit disponible ET (variante choisie si nécessaire)
+  const achatBloque = indisponible || choixRequis;
+
   // Construit l'objet à mettre dans le panier, en incluant la variante choisie
   function ligneProduit() {
     return {
@@ -781,7 +797,7 @@ function PageFicheProduit({ produit, cart, setCart, onBack, onGoToCart, onBuyNow
   }
 
   function buyNow() {
-    if (choixRequis) return;
+    if (achatBloque) return;
     const ligne = ligneProduit();
     setCart(prev => {
       const ex = prev.find(i => (i.cartKey || i.id) === ligne.cartKey);
@@ -792,7 +808,7 @@ function PageFicheProduit({ produit, cart, setCart, onBack, onGoToCart, onBuyNow
   }
 
   function addToCart() {
-    if (choixRequis) return;
+    if (achatBloque) return;
     const ligne = ligneProduit();
     setCart(prev => {
       const ex = prev.find(i => (i.cartKey || i.id) === ligne.cartKey);
@@ -887,8 +903,25 @@ function PageFicheProduit({ produit, cart, setCart, onBack, onGoToCart, onBuyNow
           position: "sticky", bottom: 16,
           padding: "0 20px", marginTop: 24,
         }}>
-          {/* Sélecteur de variante (couleur/option) si le produit en a */}
-          {variantes.length > 0 && (
+          {/* Bandeau de statut si le produit est indisponible */}
+          {indisponible && (
+            <div style={{
+              background: "#fff", border: `2px solid ${statut.couleur}`, borderRadius: 12,
+              padding: "12px 16px", marginBottom: 14, textAlign: "center",
+            }}>
+              <p style={{ fontSize: 14, fontWeight: 800, color: statut.couleur, margin: 0 }}>
+                {statut.label}
+              </p>
+              <p style={{ fontSize: 12, color: "#888", margin: "4px 0 0" }}>
+                {produit.statut === "avenir"
+                  ? "Ce produit sera bientôt disponible, revenez vite !"
+                  : "Ce produit est temporairement épuisé, revenez bientôt."}
+              </p>
+            </div>
+          )}
+
+          {/* Sélecteur de variante (couleur/option) — masqué si indisponible */}
+          {!indisponible && variantes.length > 0 && (
             <div style={{ marginBottom: 16 }}>
               <p style={{ fontSize: 13, fontWeight: 700, color: "#111", margin: "0 0 8px" }}>
                 Choisissez une option{choixRequis ? " *" : ""} :
@@ -922,46 +955,59 @@ function PageFicheProduit({ produit, cart, setCart, onBack, onGoToCart, onBuyNow
             </div>
           )}
 
-          {/* Sélecteur quantité */}
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "center",
-            gap: 16, marginBottom: 12,
-          }}>
-            <button onClick={() => setQty(q => Math.max(1, q - 1))} style={{
-              width: 36, height: 36, border: "1.5px solid #474819",
-              background: "#fff", borderRadius: "50%", cursor: "pointer",
-              fontWeight: 800, fontSize: 18, color: "#474819",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>−</button>
-            <span style={{ fontWeight: 800, fontSize: 18, color: "#111", minWidth: 24, textAlign: "center" }}>{qty}</span>
-            <button onClick={() => setQty(q => q + 1)} style={{
-              width: 36, height: 36, border: "none",
-              background: "#474819", borderRadius: "50%", cursor: "pointer",
-              fontWeight: 800, fontSize: 18, color: "#fff",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>+</button>
-          </div>
-          <button onClick={addToCart} disabled={choixRequis} style={{
-            width: "100%", padding: "15px",
-            color: choixRequis ? "#999" : "#474819",
-            border: `2px solid ${choixRequis ? "#ccc" : "#474819"}`, borderRadius: 30,
-            fontWeight: 700, fontSize: 15, cursor: choixRequis ? "not-allowed" : "pointer",
-            fontFamily: "inherit", transition: "all 0.2s", marginBottom: 10,
-            background: added ? "#c9c83a" : "transparent",
-            opacity: choixRequis ? 0.6 : 1,
-          }}>
-            {added ? "✓ Ajouté au panier !" : "Ajouter au panier"}
-          </button>
-          <button onClick={buyNow} disabled={choixRequis} style={{
-            width: "100%", padding: "14px",
-            background: choixRequis ? "#eee" : "#E4E35D",
-            color: choixRequis ? "#999" : "#474819", border: "none", borderRadius: 30,
-            fontWeight: 800, fontSize: 15, cursor: choixRequis ? "not-allowed" : "pointer",
-            fontFamily: "inherit",
-            opacity: choixRequis ? 0.6 : 1,
-          }}>
-            Acheter maintenant
-          </button>
+          {indisponible ? (
+            /* Produit indisponible : un seul bouton grisé, non cliquable */
+            <button disabled style={{
+              width: "100%", padding: "15px",
+              background: "#eee", color: "#999", border: "none", borderRadius: 30,
+              fontWeight: 800, fontSize: 15, cursor: "not-allowed", fontFamily: "inherit",
+            }}>
+              {statut.label}
+            </button>
+          ) : (
+            <>
+              {/* Sélecteur quantité */}
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                gap: 16, marginBottom: 12,
+              }}>
+                <button onClick={() => setQty(q => Math.max(1, q - 1))} style={{
+                  width: 36, height: 36, border: "1.5px solid #474819",
+                  background: "#fff", borderRadius: "50%", cursor: "pointer",
+                  fontWeight: 800, fontSize: 18, color: "#474819",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>−</button>
+                <span style={{ fontWeight: 800, fontSize: 18, color: "#111", minWidth: 24, textAlign: "center" }}>{qty}</span>
+                <button onClick={() => setQty(q => q + 1)} style={{
+                  width: 36, height: 36, border: "none",
+                  background: "#474819", borderRadius: "50%", cursor: "pointer",
+                  fontWeight: 800, fontSize: 18, color: "#fff",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>+</button>
+              </div>
+              <button onClick={addToCart} disabled={choixRequis} style={{
+                width: "100%", padding: "15px",
+                color: choixRequis ? "#999" : "#474819",
+                border: `2px solid ${choixRequis ? "#ccc" : "#474819"}`, borderRadius: 30,
+                fontWeight: 700, fontSize: 15, cursor: choixRequis ? "not-allowed" : "pointer",
+                fontFamily: "inherit", transition: "all 0.2s", marginBottom: 10,
+                background: added ? "#c9c83a" : "transparent",
+                opacity: choixRequis ? 0.6 : 1,
+              }}>
+                {added ? "✓ Ajouté au panier !" : "Ajouter au panier"}
+              </button>
+              <button onClick={buyNow} disabled={choixRequis} style={{
+                width: "100%", padding: "14px",
+                background: choixRequis ? "#eee" : "#E4E35D",
+                color: choixRequis ? "#999" : "#474819", border: "none", borderRadius: 30,
+                fontWeight: 800, fontSize: 15, cursor: choixRequis ? "not-allowed" : "pointer",
+                fontFamily: "inherit",
+                opacity: choixRequis ? 0.6 : 1,
+              }}>
+                Acheter maintenant
+              </button>
+            </>
+          )}
         </div>
 
         {/* Produits similaires */}
@@ -1049,19 +1095,32 @@ function ProductCard({ p, onAdd, onRemove, added, onView }) {
         onClick={() => onView && onView(p)}
         style={{ cursor: onView ? "pointer" : "default", position: "relative" }}
       >
-        {p.badge && (
-          <div style={{
-            position: "absolute", top: 8, left: 8, zIndex: 2,
-            background: "#111", color: "#fff",
-            fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 3,
-          }}>{p.badge}</div>
-        )}
-        <Visuel
-          src={p.image}
-          alt={p.name}
-          style={{ height: 180, background: "#f4f0ea" }}
-          imgStyle={{ objectFit: "contain", padding: 8 }}
-        />
+        {(() => {
+          const st = infoStatut(p);
+          if (st) return (
+            <div style={{
+              position: "absolute", top: 8, left: 8, zIndex: 2,
+              background: st.couleur, color: "#fff",
+              fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 3,
+            }}>{st.label}</div>
+          );
+          if (p.badge) return (
+            <div style={{
+              position: "absolute", top: 8, left: 8, zIndex: 2,
+              background: "#111", color: "#fff",
+              fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 3,
+            }}>{p.badge}</div>
+          );
+          return null;
+        })()}
+        <div style={{ opacity: infoStatut(p) ? 0.55 : 1 }}>
+          <Visuel
+            src={p.image}
+            alt={p.name}
+            style={{ height: 180, background: "#f4f0ea" }}
+            imgStyle={{ objectFit: "contain", padding: 8 }}
+          />
+        </div>
       </div>
       <div style={{ padding: "11px 12px 13px", flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
         <p
@@ -1079,6 +1138,13 @@ function ProductCard({ p, onAdd, onRemove, added, onView }) {
             {p.price.toLocaleString("fr-FR")} F
           </span>
           {(() => {
+            const st = infoStatut(p);
+            // Produit indisponible : petit texte au lieu du bouton
+            if (st) {
+              return (
+                <span style={{ fontSize: 10, fontWeight: 700, color: st.couleur }}>{st.label}</span>
+              );
+            }
             // Si le produit a des variantes, on force le passage par la fiche pour choisir
             const aVariantes = p.variantes && String(p.variantes).trim().length > 0;
             if (aVariantes) {
