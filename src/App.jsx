@@ -416,17 +416,28 @@ function Header({ search, setSearch, cartCount, onGoToCart, onHome }) {
 function PageAccueil({ cart, setCart, onSelectCategory, onGoToCart, onBuyNow }) {
   const [search, setSearch] = useState("");
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [scrollMemo, setScrollMemo] = useState(0);
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
   const [added, setAdded] = useState({});
+
+  function ouvrirProduit(p) {
+    setScrollMemo(window.scrollY);
+    window.scrollTo(0, 0);
+    setSelectedProduct(p);
+  }
+  function retourListe() {
+    setSelectedProduct(null);
+    requestAnimationFrame(() => window.scrollTo(0, scrollMemo));
+  }
 
   if (selectedProduct) return (
     <PageFicheProduit
       produit={selectedProduct}
       cart={cart} setCart={setCart}
-      onBack={() => setSelectedProduct(null)}
+      onBack={retourListe}
       onGoToCart={onGoToCart}
       onBuyNow={() => { setSelectedProduct(null); onBuyNow(); }}
-      onViewSimilar={(p) => setSelectedProduct(p)}
+      onViewSimilar={(p) => { window.scrollTo(0, 0); setSelectedProduct(p); }}
     />
   );
 
@@ -483,7 +494,7 @@ function PageAccueil({ cart, setCart, onSelectCategory, onGoToCart, onBuyNow }) 
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(155px, 1fr))", gap: 10 }}>
               {searchResults.map(p => (
-                <ProductCard key={p.id} p={p} onAdd={addToCart} added={added[p.id]} onView={(p) => { window.scrollTo(0, 0); setSelectedProduct(p); }} />
+                <ProductCard key={p.id} p={p} onAdd={addToCart} added={added[p.id]} onView={ouvrirProduit} />
               ))}
             </div>
           )}
@@ -627,16 +638,31 @@ function PageProduits({ activeCat, setActiveCat, cart, setCart, onHome, onGoToCa
   const [search, setSearch] = useState("");
   const [added, setAdded] = useState({});
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [scrollMemo, setScrollMemo] = useState(0);   // position de scroll mémorisée
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
+
+  // Ouvre un produit en mémorisant la position de scroll actuelle
+  function ouvrirProduit(p) {
+    setScrollMemo(window.scrollY);   // on retient où on était
+    window.scrollTo(0, 0);           // on remonte en haut pour voir la fiche
+    setSelectedProduct(p);
+  }
+
+  // Revient à la liste et restaure la position où on était
+  function retourListe() {
+    setSelectedProduct(null);
+    // On restaure la position après le ré-affichage de la liste
+    requestAnimationFrame(() => window.scrollTo(0, scrollMemo));
+  }
 
   if (selectedProduct) return (
     <PageFicheProduit
       produit={selectedProduct}
       cart={cart} setCart={setCart}
-      onBack={() => setSelectedProduct(null)}
+      onBack={retourListe}
       onGoToCart={onGoToCart}
       onBuyNow={() => { setSelectedProduct(null); onBuyNow(); }}
-      onViewSimilar={(p) => setSelectedProduct(p)}
+      onViewSimilar={(p) => { window.scrollTo(0, 0); setSelectedProduct(p); }}
     />
   );
 
@@ -763,7 +789,7 @@ function PageProduits({ activeCat, setActiveCat, cart, setCart, onHome, onGoToCa
             gap: 10,
           }}>
             {displayProducts.map(p => (
-              <ProductCard key={p.id} p={p} onAdd={addToCart} added={added[p.id]} onView={(p) => { window.scrollTo(0, 0); setSelectedProduct(p); }} />
+              <ProductCard key={p.id} p={p} onAdd={addToCart} added={added[p.id]} onView={ouvrirProduit} />
             ))}
           </div>
         ) : (
