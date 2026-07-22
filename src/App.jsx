@@ -92,7 +92,7 @@ async function fetchCategories() {
 
 // Charge les produits depuis la table Supabase "produits"
 async function fetchProducts() {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/produits?select=id,nom,prix,categorie,image,video,badge,description,variantes,statut`, {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/produits?select=id,nom,prix,prix_promo,categorie,image,video,badge,description,variantes,statut`, {
     headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` },
   });
   const data = await res.json();
@@ -100,6 +100,7 @@ async function fetchProducts() {
     id: p.id,
     name: p.nom,
     price: p.prix || 0,
+    pricePromo: p.prix_promo || null,   // prix réduit (null = pas de promo)
     cat: p.categorie,     // doit correspondre au "nom" d'une catégorie
     image: p.image || null,
     video: p.video || null,
@@ -127,6 +128,19 @@ function partagentCategorie(a, b) {
   const catsA = String(a.cat).split(",").map(c => c.trim());
   const catsB = String(b.cat).split(",").map(c => c.trim());
   return catsA.some(c => catsB.includes(c));
+}
+
+// Infos de prix d'un produit : gère le prix promo (barré) s'il existe.
+// Renvoie { prix, prixBarre, enPromo, pourcent }
+function infoPrix(produit) {
+  const normal = produit.price || 0;
+  const promo = produit.pricePromo;
+  // Promo valide seulement si un prix promo existe ET est inférieur au prix normal
+  if (promo && promo > 0 && promo < normal) {
+    const pourcent = Math.round((1 - promo / normal) * 100);
+    return { prix: promo, prixBarre: normal, enPromo: true, pourcent };
+  }
+  return { prix: normal, prixBarre: null, enPromo: false, pourcent: 0 };
 }
 
 // Infos d'affichage selon le statut d'un produit.
@@ -422,10 +436,11 @@ function PageAccueil({ cart, setCart, onSelectCategory, onGoToCart, onBuyNow }) 
   const hasSearch = search.trim().length > 0;
 
   function addToCart(p) {
+    const prixPaye = infoPrix(p).prix;
     setCart(prev => {
       const ex = prev.find(i => i.id === p.id);
       if (ex) return prev.map(i => i.id === p.id ? { ...i, qty: i.qty + 1 } : i);
-      return [...prev, { ...p, qty: 1 }];
+      return [...prev, { ...p, price: prixPaye, qty: 1 }];
     });
     setAdded(prev => ({ ...prev, [p.id]: (prev[p.id] || 0) + 1 }));
   }
@@ -637,10 +652,11 @@ function PageProduits({ activeCat, setActiveCat, cart, setCart, onHome, onGoToCa
     : filtered;
 
   function addToCart(p) {
+    const prixPaye = infoPrix(p).prix;
     setCart(prev => {
       const ex = prev.find(i => i.id === p.id);
       if (ex) return prev.map(i => i.id === p.id ? { ...i, qty: i.qty + 1 } : i);
-      return [...prev, { ...p, qty: 1 }];
+      return [...prev, { ...p, price: prixPaye, qty: 1 }];
     });
     setAdded(prev => ({ ...prev, [p.id]: (prev[p.id] || 0) + 1 }));
   }
@@ -787,8 +803,10 @@ function PageFicheProduit({ produit, cart, setCart, onBack, onGoToCart, onBuyNow
 
   // Construit l'objet à mettre dans le panier, en incluant la variante choisie
   function ligneProduit() {
+    const ip = infoPrix(produit);
     return {
       ...produit,
+      price: ip.prix,   // prix effectivement payé (promo si en promo, sinon normal)
       qty,
       variante: varianteChoisie || null,
       // identifiant unique panier : produit + variante (2 couleurs = 2 lignes)
@@ -887,9 +905,27 @@ function PageFicheProduit({ produit, cart, setCart, onBack, onGoToCart, onBuyNow
           <h1 style={{ fontSize: 20, fontWeight: 800, color: "#111", margin: "0 0 8px", lineHeight: 1.3 }}>
             {produit.name}
           </h1>
-          <p style={{ fontSize: 22, fontWeight: 800, color: "#111", margin: "0 0 16px" }}>
-            {produit.price.toLocaleString("fr-FR")} <span style={{ fontSize: 14, fontWeight: 400 }}>FCFA</span>
-          </p>
+          {(() => {
+            const ip = infoPrix(produit);
+            if (ip.enPromo) return (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", margin: "0 0 16px" }}>
+                <span style={{ fontSize: 22, fontWeight: 800, color: "#c0392b" }}>
+                  {ip.prix.toLocaleString("fr-FR")} <span style={{ fontSize: 14, fontWeight: 400 }}>FCFA</span>
+                </span>
+                <span style={{ fontSize: 15, color: "#999", textDecoration: "line-through" }}>
+                  {ip.prixBarre.toLocaleString("fr-FR")} F
+                </span>
+                <span style={{ background: "#c0392b", color: "#fff", fontSize: 12, fontWeight: 800, padding: "3px 8px", borderRadius: 4 }}>
+                  -{ip.pourcent}%
+                </span>
+              </div>
+            );
+            return (
+              <p style={{ fontSize: 22, fontWeight: 800, color: "#111", margin: "0 0 16px" }}>
+                {ip.prix.toLocaleString("fr-FR")} <span style={{ fontSize: 14, fontWeight: 400 }}>FCFA</span>
+              </p>
+            );
+          })()}
           <div style={{ width: 32, height: 3, background: "#E4E35D", marginBottom: 16, borderRadius: 2 }} />
           <p style={{ fontSize: 13, color: "#555", lineHeight: 1.7, margin: 0 }}>
             {produit.desc}
@@ -1134,9 +1170,20 @@ function ProductCard({ p, onAdd, onRemove, added, onView }) {
           {p.name}
         </p>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto" }}>
-          <span style={{ fontSize: 15, fontWeight: 800, color: "#111" }}>
-            {p.price.toLocaleString("fr-FR")} F
-          </span>
+          {(() => {
+            const ip = infoPrix(p);
+            if (ip.enPromo) return (
+              <span style={{ display: "flex", flexDirection: "column", lineHeight: 1.2 }}>
+                <span style={{ fontSize: 15, fontWeight: 800, color: "#c0392b" }}>{ip.prix.toLocaleString("fr-FR")} F</span>
+                <span style={{ fontSize: 11, color: "#999", textDecoration: "line-through" }}>{ip.prixBarre.toLocaleString("fr-FR")} F</span>
+              </span>
+            );
+            return (
+              <span style={{ fontSize: 15, fontWeight: 800, color: "#111" }}>
+                {ip.prix.toLocaleString("fr-FR")} F
+              </span>
+            );
+          })()}
           {(() => {
             const st = infoStatut(p);
             // Produit indisponible : petit texte au lieu du bouton
