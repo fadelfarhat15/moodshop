@@ -1162,7 +1162,7 @@ function PageFicheProduit({ produit, cart, setCart, onBack, onGoToCart, onBuyNow
         {/* Description du produit (après le bloc d'achat) */}
         {produit.desc && (
           <div style={{ background: "#fff", padding: "20px 20px 24px", marginBottom: 10 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: "#999", margin: "0 0 10px" }}>
+            <p style={{ fontSize: 13, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", color: "#111", margin: "0 0 10px" }}>
               Description
             </p>
             <p style={{ fontSize: 13, color: "#555", lineHeight: 1.7, margin: 0 }}>
