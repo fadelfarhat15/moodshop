@@ -92,7 +92,7 @@ async function fetchCategories() {
 
 // Charge les produits depuis la table Supabase "produits"
 async function fetchProducts() {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/produits?select=id,nom,prix,prix_promo,categorie,image,video,badge,description,variantes,statut`, {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/produits?select=id,nom,prix,prix_promo,paliers,categorie,image,video,badge,description,variantes,statut`, {
     headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` },
   });
   const data = await res.json();
@@ -101,6 +101,7 @@ async function fetchProducts() {
     name: p.nom,
     price: p.prix || 0,
     pricePromo: p.prix_promo || null,   // prix réduit (null = pas de promo)
+    paliers: p.paliers || null,         // offres par lot, ex: "2:10000, 3:14000"
     cat: p.categorie,     // doit correspondre au "nom" d'une catégorie
     image: p.image || null,
     video: p.video || null,
@@ -141,6 +142,48 @@ function infoPrix(produit) {
     return { prix: promo, prixBarre: normal, enPromo: true, pourcent };
   }
   return { prix: normal, prixBarre: null, enPromo: false, pourcent: 0 };
+}
+
+// Lit la colonne "paliers" (ex: "2:10000, 3:14000") et renvoie une liste triée
+// d'offres par lot : [{ qty: 2, prix: 10000 }, { qty: 3, prix: 14000 }]
+function lirePaliers(produit) {
+  if (!produit.paliers) return [];
+  return String(produit.paliers)
+    .split(",")
+    .map(bloc => {
+      const [q, p] = bloc.split(":").map(x => parseInt(String(x).trim(), 10));
+      return (q > 1 && p > 0) ? { qty: q, prix: p } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.qty - b.qty);
+}
+
+// Calcule le MEILLEUR prix total pour une quantité donnée,
+// en combinant automatiquement les lots et les unités.
+// Ex: prix unitaire 6000, palier 2:10000 -> 4 articles = 2 lots = 20000
+function prixTotalPour(produit, quantite) {
+  const prixUnite = infoPrix(produit).prix;
+  const paliers = lirePaliers(produit);
+  if (quantite <= 0) return 0;
+  if (paliers.length === 0) return prixUnite * quantite;
+
+  // On cherche le coût minimal pour chaque quantité de 1 à "quantite"
+  const cout = new Array(quantite + 1).fill(Infinity);
+  cout[0] = 0;
+  for (let i = 1; i <= quantite; i++) {
+    cout[i] = cout[i - 1] + prixUnite;            // ajouter une unité
+    for (const pal of paliers) {                   // ou utiliser un lot
+      if (pal.qty <= i) {
+        cout[i] = Math.min(cout[i], cout[i - pal.qty] + pal.prix);
+      }
+    }
+  }
+  return cout[quantite];
+}
+
+// Est-ce que ce produit a des offres par lot à afficher ?
+function aDesPaliers(produit) {
+  return lirePaliers(produit).length > 0;
 }
 
 // Infos d'affichage selon le statut d'un produit.
@@ -1028,6 +1071,35 @@ function PageFicheProduit({ produit, cart, setCart, onBack, onGoToCart, onBuyNow
             </button>
           ) : (
             <>
+              {/* Offre par lot (si le produit en a) */}
+              {aDesPaliers(produit) && (
+                <div style={{
+                  background: "#FFF8E1", border: "1.5px dashed #c9a227", borderRadius: 10,
+                  padding: "12px 14px", marginBottom: 14,
+                }}>
+                  <p style={{ fontSize: 13, fontWeight: 800, color: "#8a6d1f", margin: "0 0 8px" }}>
+                    Offre spéciale
+                  </p>
+                  <p style={{ fontSize: 13, color: "#555", margin: "0 0 4px" }}>
+                    1 article = {infoPrix(produit).prix.toLocaleString("fr-FR")} F
+                  </p>
+                  {lirePaliers(produit).map(pal => {
+                    const plein = infoPrix(produit).prix * pal.qty;
+                    const economie = plein - pal.prix;
+                    return (
+                      <p key={pal.qty} style={{ fontSize: 13, color: "#111", fontWeight: 700, margin: "0 0 4px" }}>
+                        {pal.qty} articles = {pal.prix.toLocaleString("fr-FR")} F
+                        {economie > 0 && (
+                          <span style={{ color: "#2e7d32", fontWeight: 600, fontSize: 12 }}>
+                            {" "}(économisez {economie.toLocaleString("fr-FR")} F)
+                          </span>
+                        )}
+                      </p>
+                    );
+                  })}
+                </div>
+              )}
+
               {/* Sélecteur quantité */}
               <div style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
@@ -1047,6 +1119,25 @@ function PageFicheProduit({ produit, cart, setCart, onBack, onGoToCart, onBuyNow
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}>+</button>
               </div>
+
+              {/* Total en direct selon la quantité choisie */}
+              {(() => {
+                const totalLigne = prixTotalPour(produit, qty);
+                const plein = infoPrix(produit).prix * qty;
+                const economie = plein - totalLigne;
+                return (
+                  <div style={{ textAlign: "center", marginBottom: 12 }}>
+                    <p style={{ fontSize: 16, fontWeight: 800, color: "#111", margin: 0 }}>
+                      Total : {totalLigne.toLocaleString("fr-FR")} F
+                    </p>
+                    {economie > 0 && (
+                      <p style={{ fontSize: 12, color: "#2e7d32", fontWeight: 700, margin: "3px 0 0" }}>
+                        Vous économisez {economie.toLocaleString("fr-FR")} F
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
               <button onClick={addToCart} disabled={choixRequis} style={{
                 width: "100%", padding: "15px",
                 color: choixRequis ? "#999" : "#474819",
@@ -1245,7 +1336,7 @@ function ProductCard({ p, onAdd, onRemove, added, onView }) {
 // PAGE PANIER
 // ══════════════════════════════════════════════════════════════════════════════
 function PagePanier({ cart, setCart, onBack, onOrder }) {
-  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const total = cart.reduce((s, i) => s + prixTotalPour(i, i.qty), 0);
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
 
   function updateQty(key, delta) {
@@ -1300,7 +1391,7 @@ function PagePanier({ cart, setCart, onBack, onOrder }) {
                       <p style={{ fontSize: 11, color: "#888", margin: "0 0 3px" }}>Option : {item.variante}</p>
                     )}
                     <p style={{ fontSize: 13, fontWeight: 800, color: "#111", margin: 0 }}>
-                      {(item.price * item.qty).toLocaleString("fr-FR")} F
+                      {prixTotalPour(item, item.qty).toLocaleString("fr-FR")} F
                     </p>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1363,7 +1454,7 @@ function Field({ label, fkey, type = "text", placeholder = "", form, setForm, er
 function PageCommande({ cart, onBack, onConfirm }) {
   const [form, setForm] = useState({ nom: "", telephone: "", quartier: "", adresse: "", paiement: "livraison", mobile: "" });
   const [errors, setErrors] = useState({});
-  const sousTotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const sousTotal = cart.reduce((s, i) => s + prixTotalPour(i, i.qty), 0);
   const fraisLivraison = livraisonPrix[form.quartier] || 0;
   const total = sousTotal + fraisLivraison;
 
@@ -1471,7 +1562,7 @@ function PageCommande({ cart, onBack, onConfirm }) {
           {cart.map(i => (
             <div key={i.cartKey || i.id} style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 13 }}>
               <span style={{ color: "#555" }}>{i.name}{i.variante ? ` (${i.variante})` : ""} ×{i.qty}</span>
-              <span style={{ fontWeight: 700 }}>{(i.price * i.qty).toLocaleString("fr-FR")} F</span>
+              <span style={{ fontWeight: 700 }}>{prixTotalPour(i, i.qty).toLocaleString("fr-FR")} F</span>
             </div>
           ))}
           <div style={{ borderTop: "1px solid #ebebeb", marginTop: 10, paddingTop: 12 }}>
