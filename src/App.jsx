@@ -1266,6 +1266,17 @@ function ProductCard({ p, onAdd, onRemove, added, onView }) {
           );
           return null;
         })()}
+        {/* Badge "offre lot" en haut à droite, bien visible dans la grille */}
+        {!infoStatut(p) && aDesPaliers(p) && (
+          <div style={{
+            position: "absolute", top: 8, right: 8, zIndex: 2,
+            background: "#E4E35D", color: "#474819",
+            fontSize: 9, fontWeight: 800, padding: "4px 8px", borderRadius: 12,
+            border: "1.5px solid #474819",
+          }}>
+            OFFRE LOT
+          </div>
+        )}
         <div style={{ opacity: infoStatut(p) ? 0.55 : 1 }}>
           <Visuel
             src={p.image}
@@ -1286,6 +1297,19 @@ function ProductCard({ p, onAdd, onRemove, added, onView }) {
         >
           {p.name}
         </p>
+        {/* Détail de l'offre par lot */}
+        {!infoStatut(p) && aDesPaliers(p) && (() => {
+          const pal = lirePaliers(p)[0];   // la première offre (la plus accessible)
+          return (
+            <p style={{
+              fontSize: 11, fontWeight: 800, color: "#474819",
+              background: "#FFF8E1", border: "1px dashed #c9a227",
+              borderRadius: 6, padding: "4px 6px", margin: 0, textAlign: "center",
+            }}>
+              {pal.qty} pour {pal.prix.toLocaleString("fr-FR")} F
+            </p>
+          );
+        })()}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto" }}>
           {(() => {
             const ip = infoPrix(p);
