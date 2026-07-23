@@ -1306,7 +1306,7 @@ function ProductCard({ p, onAdd, onRemove, added, onView }) {
               background: "#FFF8E1", border: "1px dashed #c9a227",
               borderRadius: 6, padding: "4px 6px", margin: 0, textAlign: "center",
             }}>
-              {pal.qty} pour {pal.prix.toLocaleString("fr-FR")} F
+              {pal.qty} à {pal.prix.toLocaleString("fr-FR")} F
             </p>
           );
         })()}
