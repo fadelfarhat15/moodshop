@@ -421,7 +421,7 @@ function Header({ search, setSearch, cartCount, onGoToCart, onHome }) {
           style={{
             width: "100%", boxSizing: "border-box",
             padding: "9px 14px 9px 34px", border: "none",
-            borderRadius: 30, fontSize: 13, fontFamily: "inherit",
+            borderRadius: 30, fontSize: 16, fontFamily: "inherit",
             outline: "none", background: "#fff", color: "#474819",
             transition: "box-shadow 0.15s",
             boxShadow: "0 1px 6px rgba(0,0,0,0.1)",
@@ -1473,7 +1473,7 @@ function Field({ label, fkey, type = "text", placeholder = "", form, setForm, er
         style={{
           width: "100%", boxSizing: "border-box", padding: "10px 13px", borderRadius: 4,
           border: `1.5px solid ${errors[fkey] ? "#e0001a" : "#e0e0e0"}`,
-          fontSize: 13, fontFamily: "inherit", outline: "none", color: "#111",
+          fontSize: 16, fontFamily: "inherit", outline: "none", color: "#111",
         }}
         onFocus={e => { if (!errors[fkey]) e.target.style.borderColor = "#111"; }}
         onBlur={e => { if (!errors[fkey]) e.target.style.borderColor = "#e0e0e0"; }}
@@ -1532,7 +1532,7 @@ function PageCommande({ cart, onBack, onConfirm }) {
                 style={{
                   width: "100%", boxSizing: "border-box", padding: "10px 13px", borderRadius: 4,
                   border: `1.5px solid ${errors.quartier ? "#e0001a" : "#e0e0e0"}`,
-                  fontSize: 13, fontFamily: "inherit", outline: "none", color: form.quartier ? "#111" : "#999",
+                  fontSize: 16, fontFamily: "inherit", outline: "none", color: form.quartier ? "#111" : "#999",
                   background: "#fff",
                 }}
               >
