@@ -767,7 +767,7 @@ function PageProduits({ activeCat, setActiveCat, cart, setCart, onHome, onGoToCa
           return (
             <button
               key={cat.id}
-              onClick={() => { setActiveCat(cat.id); setSearch(""); }}
+              onClick={() => { setActiveCat(cat.id); setSearch(""); window.scrollTo(0, 0); }}
               style={{
                 display: "flex", flexDirection: "column", alignItems: "center",
                 gap: 3, padding: "10px 14px",
