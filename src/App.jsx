@@ -995,18 +995,14 @@ function PageFicheProduit({ produit, cart, setCart, onBack, onGoToCart, onBuyNow
               </p>
             );
           })()}
-          <div style={{ width: 32, height: 3, background: "#E4E35D", marginBottom: 16, borderRadius: 2 }} />
-          <p style={{ fontSize: 13, color: "#555", lineHeight: 1.7, margin: 0 }}>
-            {produit.desc}
-          </p>
+          <div style={{ width: 32, height: 3, background: "#E4E35D", marginBottom: 4, borderRadius: 2 }} />
         </div>
 
 
 
-        {/* Bouton panier fixe en bas */}
+        {/* Bloc d'achat (placé avant la description, fixe en place) */}
         <div style={{
-          position: "sticky", bottom: 16,
-          padding: "0 20px", marginTop: 24,
+          padding: "0 20px", marginTop: 4, marginBottom: 20,
         }}>
           {/* Bandeau de statut si le produit est indisponible */}
           {indisponible && (
@@ -1162,6 +1158,18 @@ function PageFicheProduit({ produit, cart, setCart, onBack, onGoToCart, onBuyNow
             </>
           )}
         </div>
+
+        {/* Description du produit (après le bloc d'achat) */}
+        {produit.desc && (
+          <div style={{ background: "#fff", padding: "20px 20px 24px", marginBottom: 10 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: "#999", margin: "0 0 10px" }}>
+              Description
+            </p>
+            <p style={{ fontSize: 13, color: "#555", lineHeight: 1.7, margin: 0 }}>
+              {produit.desc}
+            </p>
+          </div>
+        )}
 
         {/* Produits similaires */}
         {(() => {
